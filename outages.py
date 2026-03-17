@@ -38,7 +38,29 @@ def _(pd):
     #econ_df['fips']=econ_df['fips'].fillna(0)
     econ_df['fips']=pd.to_numeric(econ_df['fips'], errors='coerce')
     econ_df
-    return (econ_df,)
+    return df2, econ_df
+
+
+@app.cell
+def _(econ_df, pd):
+    econ_facts_df = pd.DataFrame()
+    # Using iterrows()
+    for index, row in econ_df.iterrows():
+      #  new_row = [len(econ_facts_df),econ_facts_df]
+        for year in range(2022,2025):
+            new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
+            econ_facts_df = pd.concat([econ_facts_df,new_row], ignore_index=True)
+    econ_facts_df
+    return
+
+
+@app.cell
+def _(df2):
+    counties_df=df2.iloc[:,[0,1]]
+    counties_df['state']=counties_df.name.str.split(',').str[-1] 
+    counties_df['name']=counties_df.name.str.split(',').str[0] 
+    counties_df
+    return
 
 
 @app.cell
@@ -46,12 +68,10 @@ def _(pd):
     #FEMA 
     fema_df = pd.read_csv(r'data\PublicAssistanceFundedProjectsSummaries.csv' \
     '')
-    fema_df=fema_df.iloc[:,[1,2,3,5,8]]
-    #df2.columns=['fips','name','income2022','income2023','income2024']
-    #fema_df=pd.merge(df2,df3,on=["fips","name"])
+    fema_df=fema_df.iloc[:,[0,1,2,3,5,8]]
     fema_df=fema_df.dropna(subset=['declarationDate'])
     fema_df['Date']=pd.to_datetime(fema_df['declarationDate'])
-    fema_df = fema_df[fema_df['Date'].dt.year > 2022]
+    fema_df = fema_df[fema_df['Date'].dt.year == 2023]
     fema_df.head()
     fema_df
     return (fema_df,)
@@ -59,7 +79,23 @@ def _(pd):
 
 @app.cell
 def _(fema_df):
-    fema_df['incidentType'].unique()
+    fema_df['disasterNumber'].unique()
+    return
+
+
+@app.cell
+def _(df):
+    events_df=df.drop_duplicates('event_id')
+    events_df=events_df.iloc[:,[0,1,2]]
+    events_df
+    return
+
+
+@app.cell
+def _(fema_df):
+    disasters_df=fema_df.drop_duplicates('disasterNumber')
+    disasters_df=disasters_df.iloc[:,[0,1,3]]
+    disasters_df
     return
 
 
@@ -201,7 +237,6 @@ def _(bystate_df2, plt):
     plt.tight_layout()
     plt.savefig(r'plots\OutagesPerStateBarPlot.png')
     plt.show()
-
 
     return
 
