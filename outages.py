@@ -10,6 +10,14 @@ def _():
     import pandas as pd
     import matplotlib.pyplot as plt
     import numpy as np
+    import datetime
+    import sqlite3
+
+    return np, pd, plt, sqlite3
+
+
+@app.cell
+def _(pd):
     #Read in Department of Energy outage data
     df = pd.read_csv(r'data\eaglei_outages_with_events_2022.csv')
     df2 = pd.read_csv(r'data\eaglei_outages_with_events_2023.csv')
@@ -19,18 +27,7 @@ def _():
     df['event_id']=df['event_id'] + "-" + df['Datetime Event Began'].dt.year.astype(str)
     df.head()
     df
-    return df, df2, np, pd, plt
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _(df):
-    df['event_id'].unique()
-    return
+    return (df,)
 
 
 @app.cell
@@ -57,18 +54,22 @@ def _(df, pd):
 
 @app.cell
 def _(df):
-    df
+    #print(df['Event'].value_counts())
+    print("\n\nWEATHER:",df[df['Event']=="Weather"]['Event Type'].unique(),
+        "\n\nHUMAN INTERVENTION:",df[df['Event']=="Human Intervention"]['Event Type'].unique(),
+        "\n\nSYSTEM FAILURES:",df[df['Event']=="System Failure"]['Event Type'].unique(),
+        "\n\nUNKNOWN:",df[df['Event']=="Unknown"]['Event Type'].unique())
     return
 
 
 @app.cell
 def _(pd):
     #Annual Income Data from Bureau of Economic Analysis
-    df2 = pd.read_csv(r'data\CAINC1.csv')
-    df2.columns=['fips','name','income2022','income2023','income2024']
-    df3 = pd.read_csv(r'data\CAGDP1.csv')
-    df3.columns=['fips','name','gdp2022','gdp2023','gdp2024']
-    econ_df=pd.merge(df2,df3,on=["fips","name"])
+    df3 = pd.read_csv(r'data\CAINC1.csv')
+    df3.columns=['fips','name','income2022','income2023','income2024']
+    df4 = pd.read_csv(r'data\CAGDP1.csv')
+    df4.columns=['fips','name','gdp2022','gdp2023','gdp2024']
+    econ_df=pd.merge(df3,df4,on=["fips","name"])
 
     #econ_df.head()
     #econ_df[econ_df['fips'].isnull()]
@@ -76,7 +77,7 @@ def _(pd):
     #econ_df['fips']=econ_df['fips'].fillna(0)
     econ_df['fips']=pd.to_numeric(econ_df['fips'], errors='coerce')
     econ_df
-    return df2, econ_df
+    return df3, econ_df
 
 
 @app.cell
@@ -89,16 +90,89 @@ def _(econ_df, pd):
             new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
             econ_facts_df = pd.concat([econ_facts_df,new_row], ignore_index=True)
     econ_facts_df
-    return
+    return (econ_facts_df,)
 
 
 @app.cell
-def _(df2):
-    counties_df=df2.iloc[:,[0,1]]
-    counties_df['state']=counties_df.name.str.split(',').str[-1] 
-    counties_df['name']=counties_df.name.str.split(',').str[0] 
+def _():
+    #List of states
+    state_abbreviations = {
+            'AK': 'Alaska',
+            'AL': 'Alabama',
+            'AR': 'Arkansas',
+            'AZ': 'Arizona',
+            'CA': 'California',
+            'CO': 'Colorado',
+            'CT': 'Connecticut',
+            'DC': 'District of Columbia',
+            'DE': 'Delaware',
+            'FL': 'Florida',
+            'GA': 'Georgia',
+            'HI': 'Hawaii',
+            'IA': 'Iowa',
+            'ID': 'Idaho',
+            'IL': 'Illinois',
+            'IN': 'Indiana',
+            'KS': 'Kansas',
+            'KY': 'Kentucky',
+            'LA': 'Louisiana',
+            'MA': 'Massachusetts',
+            'MD': 'Maryland',
+            'ME': 'Maine',
+            'MI': 'Michigan',
+            'MN': 'Minnesota',
+            'MO': 'Missouri',
+            'MS': 'Mississippi',
+            'MT': 'Montana',
+            'NC': 'North Carolina',
+            'ND': 'North Dakota',
+            'NE': 'Nebraska',
+            'NH': 'New Hampshire',
+            'NJ': 'New Jersey',
+            'NM': 'New Mexico',
+            'NV': 'Nevada',
+            'NY': 'New York',
+            'OH': 'Ohio',
+            'OK': 'Oklahoma',
+            'OR': 'Oregon',
+            'PA': 'Pennsylvania',
+            'RI': 'Rhode Island',
+            'SC': 'South Carolina',
+            'SD': 'South Dakota',
+            'TN': 'Tennessee',
+            'TX': 'Texas',
+            'UT': 'Utah',
+            'VA': 'Virginia',
+            'VT': 'Vermont',
+            'WA': 'Washington',
+            'WI': 'Wisconsin',
+            'WV': 'West Virginia',
+            'WY': 'Wyoming',
+            'PR': 'Puerto Rico',
+            'VI': 'Virgin Islands'
+        }
+    return (state_abbreviations,)
+
+
+@app.cell
+def _(df3, state_abbreviations):
+    counties_df=df3.iloc[:,[0,1]].copy()
+    #counties_df['name']=None
+    counties_df.loc[:, 'state']=counties_df.name.str.split(',').str[-1]
+    counties_df.loc[:, 'name']=counties_df.name.str.split(',').str[0] 
+
+    # Use .loc to explicitly set values on the original DataFrame
+    counties_df.loc[:, 'state'] = counties_df['state'].replace('\*', '', regex=True)
+
+    counties_df.loc[:, 'state'] = (
+        counties_df['state'].astype(str)
+            .str.strip()              # removes leading/trailing spaces
+            .str.upper()
+            .map(state_abbreviations) # mapping dict: 'WY'->'Wyoming', etc.
+            .fillna('Unknown')
+    )
     counties_df
-    return
+    return (counties_df,)
 
 
 @app.cell
@@ -109,22 +183,16 @@ def _(pd):
     fema_df=fema_df.iloc[:,[0,1,2,3,5,8]]
     fema_df=fema_df.dropna(subset=['declarationDate'])
     fema_df['Date']=pd.to_datetime(fema_df['declarationDate'])
-    fema_df = fema_df[fema_df['Date'].dt.year == 2023]
+    fema_df = fema_df[fema_df['Date'].dt.year > 2021]
     fema_df.head()
     fema_df
     return (fema_df,)
 
 
 @app.cell
-def _(fema_df):
-    fema_df['disasterNumber'].unique()
-    return
-
-
-@app.cell
 def _(df):
     events_df=df.drop_duplicates('event_id')
-    events_df=events_df.iloc[:,[0,1,2,15]]
+    events_df=events_df.iloc[:,[0,1,2,14]]
     events_df
     return (events_df,)
 
@@ -139,19 +207,14 @@ def _(fema_df):
 
 @app.cell
 def _(disasters_df, events_df, pd):
-    import datetime
-    import pytz
-    #events_df['Datetime Event Began'] = pd.to_datetime(events_df['Datetime Event Began'], errors='coerce')
     disasters_df['declarationDate'] = pd.to_datetime(disasters_df['declarationDate'], errors='coerce')
-    #events_df['Datetime Event Began'] = events_df['Datetime Event Began'].dt.tz_localize('UTC')
     #disasters_df['declarationDate'] = disasters_df['declarationDate'].dt.tz_localize('UTC')
     disasters_df['event_id'] = None
     disasters_df['Datetime Event Began'] = None
     for pos1, (_, row1) in enumerate(disasters_df.iterrows()):
-        #for index2, row2 in enumerate(disasters_df.iterrows()):
         for pos2, (_, row2) in enumerate(events_df.iterrows()):
             diff_days = row1['declarationDate'] - row2['Datetime Event Began']
-            if (row2['state_event'] == row1['state']) & (diff_days.days <= 14) & (diff_days.days > 0):
+            if (row2['state_event'] == row1['state']) & (diff_days.days <= 20) & (diff_days.days >= 0) & (row2['Event'] == 'Weather'):
                 disasters_df.iat[pos1,-2] = row2['event_id']
                 disasters_df.iat[pos1,-1] = row2['Datetime Event Began']
     disasters_df
@@ -179,34 +242,47 @@ def _(disasters_df, fema_df3, pd):
 
 
 @app.cell
-def _(df, econ_df):
-    merged_df = df.merge(econ_df,on='fips')
-    merged_df[['fips','event_id','Event Type','county','income2023','gdp2023']][(merged_df['fips'] == 21111)]
+def _(df, fema_facts_df, pd):
+    events_table_df = pd.merge(df,fema_facts_df,how="left",left_on='event_id',right_on='name')
+    events_table_df['outage_id']=events_table_df.index+1
+    events_table_df=events_table_df.iloc[:,[-1,15,4,5,6,7,8,10,9,11,12,13]]
+    events_table_df.columns=['outage_id','disaster_id','type','fips','state','county','start_time','end_time','duration','min_customers','max_customers','mean_customers']
+    events_table_df
+    return (events_table_df,)
+
+
+@app.cell
+def _(econ_facts_df):
+    econ_facts_df
     return
 
 
 @app.cell
-def _(df):
-    #print(df['Event'].value_counts())
-    print("\n\nWEATHER:",df[df['Event']=="Weather"]['Event Type'].unique(),
-        "\n\nHUMAN INTERVENTION:",df[df['Event']=="Human Intervention"]['Event Type'].unique(),
-        "\n\nSYSTEM FAILURES:",df[df['Event']=="System Failure"]['Event Type'].unique(),
-        "\n\nUNKNOWN:",df[df['Event']=="Unknown"]['Event Type'].unique())
+def _(sqlite3):
+    connection = sqlite3.connect("outages.db")
+    connection
+    return (connection,)
+
+
+@app.cell
+def _(connection, counties_df, econ_facts_df, events_table_df, fema_facts_df):
+    #tables = [events_table_df,fema_facts_df,counties_df,econ_facts_df]
+    events_table_df.to_sql('outages', con=connection, if_exists='replace', index=False)
+    fema_facts_df.to_sql('fema', con=connection, if_exists='replace', index=False)
+    counties_df.to_sql('counties', con=connection, if_exists='replace', index=False)
+    econ_facts_df.to_sql('econ_facts', con=connection, if_exists='replace', index=False)
+    return
+
+
+@app.cell
+def _(connection, pd):
+    pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", connection)
     return
 
 
 @app.cell
 def _(df):
     df.describe().round(2)
-    return
-
-
-@app.cell
-def _(df, fema_facts_df, pd):
-    events_table_df = pd.merge(df,fema_facts_df,how="left",on='event_id')
-    events_table_df['outage_id']=events_table_df.index+1
-    #events_table_df=events_table_df.iloc[:,[21,14,4,5,6,7,8,10,9,11,12,13]]
-    events_table_df
     return
 
 
@@ -281,6 +357,13 @@ def _(df, pd):
 
 
     _()
+    return
+
+
+@app.cell
+def _(df, econ_df):
+    merged_df = df.merge(econ_df,on='fips')
+    merged_df[['fips','event_id','Event Type','county','income2023','gdp2023']][(merged_df['fips'] == 21111)]
     return
 
 
