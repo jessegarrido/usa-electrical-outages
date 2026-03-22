@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.21.1"
 app = marimo.App(width="medium")
 
 
@@ -11,15 +11,53 @@ def _():
     import matplotlib.pyplot as plt
     import numpy as np
     #Read in Department of Energy outage data
-    df = pd.read_csv(r'data\eaglei_outages_with_events_2023.csv')
+    df = pd.read_csv(r'data\eaglei_outages_with_events_2022.csv')
+    df2 = pd.read_csv(r'data\eaglei_outages_with_events_2023.csv')
+    df = pd.concat([df,df2])
+    df['Datetime Event Began'] = pd.to_datetime(df['Datetime Event Began'], errors='coerce')
+    df['Datetime Event Began'] = df['Datetime Event Began'].dt.tz_localize('UTC')
+    df['event_id']=df['event_id'] + "-" + df['Datetime Event Began'].dt.year.astype(str)
     df.head()
     df
-    return df, np, pd, plt
+    return df, df2, np, pd, plt
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell
 def _(df):
     df['event_id'].unique()
+    return
+
+
+@app.cell
+def _(df, pd):
+    df['Event Type'].describe()
+    print()
+    print(df['Event Type'].unique())
+    human_keywords = "attack|suspicious|theft|vandalism|cyber|sabotage"
+    system_keywords = "failure|fuel|operations|interruption|inadequacy"
+    system_exclude_keywords = "attack|unknown"
+    def parse_event(event):
+        event = pd.Series(event.lower())
+        if event.str.contains("weather").any():
+            return "Weather"
+        if event.str.contains(human_keywords).any():
+            return "Human Intervention"
+        if event.str.contains(system_keywords).any() & ~event.str.contains(system_exclude_keywords).any():
+            return "System Failure"
+        return "Unknown"
+    df['Event']=df['Event Type'].apply(parse_event)
+    print(df['Event'].value_counts())
+    return
+
+
+@app.cell
+def _(df):
+    df
     return
 
 
@@ -47,7 +85,7 @@ def _(econ_df, pd):
     # Using iterrows()
     for index, row in econ_df.iterrows():
       #  new_row = [len(econ_facts_df),econ_facts_df]
-        for year in range(2022,2025):
+        for year in range(2022,2024):
             new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
             econ_facts_df = pd.concat([econ_facts_df,new_row], ignore_index=True)
     econ_facts_df
@@ -86,50 +124,64 @@ def _(fema_df):
 @app.cell
 def _(df):
     events_df=df.drop_duplicates('event_id')
-    events_df=events_df.iloc[:,[0,1,2]]
+    events_df=events_df.iloc[:,[0,1,2,15]]
     events_df
-    return
+    return (events_df,)
 
 
 @app.cell
 def _(fema_df):
     disasters_df=fema_df.drop_duplicates('disasterNumber')
-    disasters_df=disasters_df.iloc[:,[0,1,3]]
+    disasters_df=disasters_df.iloc[:,[0,3,1,2]]
+    disasters_df
+    return (disasters_df,)
+
+
+@app.cell
+def _(disasters_df, events_df, pd):
+    import datetime
+    import pytz
+    #events_df['Datetime Event Began'] = pd.to_datetime(events_df['Datetime Event Began'], errors='coerce')
+    disasters_df['declarationDate'] = pd.to_datetime(disasters_df['declarationDate'], errors='coerce')
+    #events_df['Datetime Event Began'] = events_df['Datetime Event Began'].dt.tz_localize('UTC')
+    #disasters_df['declarationDate'] = disasters_df['declarationDate'].dt.tz_localize('UTC')
+    disasters_df['event_id'] = None
+    disasters_df['Datetime Event Began'] = None
+    for pos1, (_, row1) in enumerate(disasters_df.iterrows()):
+        #for index2, row2 in enumerate(disasters_df.iterrows()):
+        for pos2, (_, row2) in enumerate(events_df.iterrows()):
+            diff_days = row1['declarationDate'] - row2['Datetime Event Began']
+            if (row2['state_event'] == row1['state']) & (diff_days.days <= 14) & (diff_days.days > 0):
+                disasters_df.iat[pos1,-2] = row2['event_id']
+                disasters_df.iat[pos1,-1] = row2['Datetime Event Began']
     disasters_df
     return
+
+
+@app.cell
+def _(disasters_df, fema_df, pd):
+    fema_df2 = pd.merge(fema_df,disasters_df,on="disasterNumber", how="left")
+    #fema_df2=fema_df2.iloc[:,[0,1,2]]
+    fema_df3=fema_df2.groupby('event_id')['federalObligatedAmount'].sum()
+
+    fema_df3
+    return (fema_df3,)
+
+
+@app.cell
+def _(disasters_df, fema_df3, pd):
+    fema_facts_df = pd.merge(fema_df3,disasters_df,on="event_id", how="left")
+    fema_facts_df['disaster_id']=fema_facts_df.index+1
+    fema_facts_df=fema_facts_df.iloc[:,[7,0,4,5,3,1]]
+    fema_facts_df.columns=['disaster_id','name','date','type','state','amount']
+    fema_facts_df
+    return (fema_facts_df,)
 
 
 @app.cell
 def _(df, econ_df):
     merged_df = df.merge(econ_df,on='fips')
     merged_df[['fips','event_id','Event Type','county','income2023','gdp2023']][(merged_df['fips'] == 21111)]
-    return
-
-
-@app.cell
-def _(df):
-    df['Event Type'].describe()
-    print()
-    print(df['Event Type'].unique())
-    return
-
-
-@app.cell
-def _(df, pd):
-    human_keywords = "attack|suspicious|theft|vandalism|cyber"
-    system_keywords = "failure|fuel|operations|interruption"
-    system_exclude_keywords = "attack|unknown|other"
-    def parse_event(event):
-        event = pd.Series(event.lower())
-        if event.str.contains("weather").any():
-            return "Weather"
-        if event.str.contains(human_keywords).any():
-            return "Human Intervention"
-        if event.str.contains(system_keywords).any() & ~event.str.contains(system_exclude_keywords).any():
-            return "System Failure"
-        return "Unknown"
-    df['Event']=df['Event Type'].apply(parse_event)
-    print(df['Event'].value_counts())
     return
 
 
@@ -150,73 +202,86 @@ def _(df):
 
 
 @app.cell
+def _(df, fema_facts_df, pd):
+    events_table_df = pd.merge(df,fema_facts_df,how="left",on='event_id')
+    events_table_df['outage_id']=events_table_df.index+1
+    #events_table_df=events_table_df.iloc[:,[21,14,4,5,6,7,8,10,9,11,12,13]]
+    events_table_df
+    return
+
+
+@app.cell
 def _(df, pd):
-    #count and normalize Events per state
-    events = df['state'].value_counts()
-    events_df = pd.DataFrame(events.rename_axis('State').reset_index(name='Event Count'))
-    sum_events = df['state'].value_counts().sum()
-    events_pu_df = events_df.copy()
-    events_pu_df['Events'] = pd.DataFrame(events_df['Event Count'].apply(lambda x: x/sum_events*100))
+    def _():
+        #count and normalize Events per state
+        events = df['state'].value_counts()
+        events_df = pd.DataFrame(events.rename_axis('State').reset_index(name='Event Count'))
+        sum_events = df['state'].value_counts().sum()
+        events_pu_df = events_df.copy()
+        events_pu_df['Events'] = pd.DataFrame(events_df['Event Count'].apply(lambda x: x/sum_events*100))
 
-    #count and normalize Duration per state
-    duration = df.groupby('state')['duration'].sum()
-    duration_df = pd.DataFrame(duration.rename_axis('State').reset_index(name='Duration(h)'))
-    sum_duration = duration_df['Duration(h)'].sum()
-    duration_pu_df = duration_df.copy()
-    duration_pu_df['Duration'] = pd.DataFrame(duration_df['Duration(h)'].apply(lambda x:x/sum_duration*100))
+        #count and normalize Duration per state
+        duration = df.groupby('state')['duration'].sum()
+        duration_df = pd.DataFrame(duration.rename_axis('State').reset_index(name='Duration(h)'))
+        sum_duration = duration_df['Duration(h)'].sum()
+        duration_pu_df = duration_df.copy()
+        duration_pu_df['Duration'] = pd.DataFrame(duration_df['Duration(h)'].apply(lambda x:x/sum_duration*100))
 
-    #count and normalize customer-hours per state
-    df['customer-hours']=(df['min_customers']+df['max_customers'])/2*df['duration']
-    csthrs = df.groupby('state')['customer-hours'].sum()
-    csthrs_df = pd.DataFrame(csthrs.rename_axis('State').reset_index(name='customer-hours'))
-    csthrs_df
-    sum_csthrs = df['customer-hours'].sum()
-    csthrs_pu_df = csthrs_df.copy()
-    csthrs_pu_df['Customer-hours'] = pd.DataFrame(csthrs_df['customer-hours'].apply(lambda x: x/sum_csthrs*100))
+        #count and normalize customer-hours per state
+        df['customer-hours']=(df['min_customers']+df['max_customers'])/2*df['duration']
+        csthrs = df.groupby('state')['customer-hours'].sum()
+        csthrs_df = pd.DataFrame(csthrs.rename_axis('State').reset_index(name='customer-hours'))
+        csthrs_df
+        sum_csthrs = df['customer-hours'].sum()
+        csthrs_pu_df = csthrs_df.copy()
+        csthrs_pu_df['Customer-hours'] = pd.DataFrame(csthrs_df['customer-hours'].apply(lambda x: x/sum_csthrs*100))
 
-    #merge dfs
-    bystate_df=events_pu_df.merge(duration_pu_df)
-    bystate_df=bystate_df.merge(csthrs_pu_df)
+        #merge dfs
+        bystate_df=events_pu_df.merge(duration_pu_df)
+        bystate_df=bystate_df.merge(csthrs_pu_df)
 
-    #drop not-normalized columns and minor states
-    bystate_df2=bystate_df.drop(['Event Count','Duration(h)','customer-hours'],axis=1)
-    bystate_df2=bystate_df2[bystate_df2['Events']>1]
-    bystate_df2.set_index('State',inplace=True)
-    #print(bystate_df2)
+        #drop not-normalized columns and minor states
+        bystate_df2=bystate_df.drop(['Event Count','Duration(h)','customer-hours'],axis=1)
+        bystate_df2=bystate_df2[bystate_df2['Events']>1]
+        bystate_df2.set_index('State',inplace=True)
+        #print(bystate_df2)
 
-    #count and normalize Count per Event
-    events = df['Event'].value_counts()
-    events_df = pd.DataFrame(events.rename_axis('Event').reset_index(name='Event Count'))
-    sum_events = df['Event'].value_counts().sum()
-    events_pu_df = events_df.copy()
-    events_pu_df['Events'] = pd.DataFrame(events_df['Event Count'].apply(lambda x: x/sum_events*100))
+        #count and normalize Count per Event
+        events = df['Event'].value_counts()
+        events_df = pd.DataFrame(events.rename_axis('Event').reset_index(name='Event Count'))
+        sum_events = df['Event'].value_counts().sum()
+        events_pu_df = events_df.copy()
+        events_pu_df['Events'] = pd.DataFrame(events_df['Event Count'].apply(lambda x: x/sum_events*100))
 
-    #count and normalize Duration per Event
-    duration = df.groupby('Event')['duration'].sum()
-    duration_df = pd.DataFrame(duration.rename_axis('Event').reset_index(name='Duration(h)'))
-    sum_duration = duration_df['Duration(h)'].sum()
-    duration_pu_df = duration_df.copy()
-    duration_pu_df['Duration'] = pd.DataFrame(duration_df['Duration(h)'].apply(lambda x:x/sum_duration*100))
+        #count and normalize Duration per Event
+        duration = df.groupby('Event')['duration'].sum()
+        duration_df = pd.DataFrame(duration.rename_axis('Event').reset_index(name='Duration(h)'))
+        sum_duration = duration_df['Duration(h)'].sum()
+        duration_pu_df = duration_df.copy()
+        duration_pu_df['Duration'] = pd.DataFrame(duration_df['Duration(h)'].apply(lambda x:x/sum_duration*100))
 
-    #count and normalize customer-hours per Event
-    df['customer-hours']=(df['min_customers']+df['max_customers'])/2*df['duration']
-    csthrs = df.groupby('Event')['customer-hours'].sum()
-    csthrs_df = pd.DataFrame(csthrs.rename_axis('Event').reset_index(name='customer-hours'))
-    sum_csthrs = df['customer-hours'].sum()
-    csthrs_pu_df = csthrs_df.copy()
-    csthrs_pu_df['Customer-hours'] = pd.DataFrame(csthrs_df['customer-hours'].apply(lambda x: x/sum_csthrs*100))
+        #count and normalize customer-hours per Event
+        df['customer-hours']=(df['min_customers']+df['max_customers'])/2*df['duration']
+        csthrs = df.groupby('Event')['customer-hours'].sum()
+        csthrs_df = pd.DataFrame(csthrs.rename_axis('Event').reset_index(name='customer-hours'))
+        sum_csthrs = df['customer-hours'].sum()
+        csthrs_pu_df = csthrs_df.copy()
+        csthrs_pu_df['Customer-hours'] = pd.DataFrame(csthrs_df['customer-hours'].apply(lambda x: x/sum_csthrs*100))
 
-    #merge dfs
-    byevent_df=events_pu_df.merge(duration_pu_df)
-    byevent_df=byevent_df.merge(csthrs_pu_df)
+        #merge dfs
+        byevent_df=events_pu_df.merge(duration_pu_df)
+        byevent_df=byevent_df.merge(csthrs_pu_df)
 
-    #drop not-normalized columns
-    byevent_df2=byevent_df.drop(['Event Count','Duration(h)','customer-hours'],axis=1)
-    byevent_df2.set_index('Event',inplace=True)
-    print(bystate_df2)
-    print("\n\n")
-    print(byevent_df2)
-    return byevent_df2, bystate_df2, events
+        #drop not-normalized columns
+        byevent_df2=byevent_df.drop(['Event Count','Duration(h)','customer-hours'],axis=1)
+        byevent_df2.set_index('Event',inplace=True)
+        print(bystate_df2)
+        print("\n\n")
+        return print(byevent_df2)
+
+
+    _()
+    return
 
 
 @app.cell
@@ -237,7 +302,6 @@ def _(bystate_df2, plt):
     plt.tight_layout()
     plt.savefig(r'plots\OutagesPerStateBarPlot.png')
     plt.show()
-
     return
 
 
@@ -352,6 +416,13 @@ def _(df, np, plt):
 
 
     _()
+    return
+
+
+@app.cell
+def _():
+    import marimo as mo
+
     return
 
 
