@@ -16,6 +16,14 @@ def _():
     return np, pd, plt, sqlite3
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Read in data from csv
+    """)
+    return
+
+
 @app.cell
 def _(pd):
     #Read in Department of Energy outage data
@@ -49,12 +57,6 @@ def _(df, pd):
         return "Unknown"
     df['Event']=df['Event Type'].apply(parse_event)
     print(df['Event'].value_counts())
-    return
-
-
-@app.cell
-def _(df):
-    #print(df['Event'].value_counts())
     print("\n\nWEATHER:",df[df['Event']=="Weather"]['Event Type'].unique(),
         "\n\nHUMAN INTERVENTION:",df[df['Event']=="Human Intervention"]['Event Type'].unique(),
         "\n\nSYSTEM FAILURES:",df[df['Event']=="System Failure"]['Event Type'].unique(),
@@ -71,10 +73,7 @@ def _(pd):
     df4.columns=['fips','name','gdp2022','gdp2023','gdp2024']
     econ_df=pd.merge(df3,df4,on=["fips","name"])
 
-    #econ_df.head()
-    #econ_df[econ_df['fips'].isnull()]
     econ_df = econ_df[econ_df['fips'].notna()]
-    #econ_df['fips']=econ_df['fips'].fillna(0)
     econ_df['fips']=pd.to_numeric(econ_df['fips'], errors='coerce')
     econ_df
     return df3, econ_df
@@ -94,7 +93,7 @@ def _(econ_df, pd):
 
 
 @app.cell
-def _():
+def _(df3):
     #List of states
     state_abbreviations = {
             'AK': 'Alaska',
@@ -151,24 +150,17 @@ def _():
             'PR': 'Puerto Rico',
             'VI': 'Virgin Islands'
         }
-    return (state_abbreviations,)
-
-
-@app.cell
-def _(df3, state_abbreviations):
     counties_df=df3.iloc[:,[0,1]].copy()
     #counties_df['name']=None
     counties_df.loc[:, 'state']=counties_df.name.str.split(',').str[-1]
     counties_df.loc[:, 'name']=counties_df.name.str.split(',').str[0] 
 
     # Use .loc to explicitly set values on the original DataFrame
-    counties_df.loc[:, 'state'] = counties_df['state'].replace('\*', '', regex=True)
+    counties_df.loc[:, 'state'] = counties_df['state'].replace('\\*', '', regex=True)
 
-    counties_df.loc[:, 'state'] = (
-        counties_df['state'].astype(str)
-            .str.strip()              # removes leading/trailing spaces
-            .str.upper()
-            .map(state_abbreviations) # mapping dict: 'WY'->'Wyoming', etc.
+    counties_df.loc[:, 'state'] = (counties_df['state'].astype(str)
+            .str.strip() 
+            .map(state_abbreviations) 
             .fillna('Unknown')
     )
     counties_df
@@ -178,8 +170,7 @@ def _(df3, state_abbreviations):
 @app.cell
 def _(pd):
     #FEMA 
-    fema_df = pd.read_csv(r'data\PublicAssistanceFundedProjectsSummaries.csv' \
-    '')
+    fema_df = pd.read_csv(r'data\PublicAssistanceFundedProjectsSummaries.csv')
     fema_df=fema_df.iloc[:,[0,1,2,3,5,8]]
     fema_df=fema_df.dropna(subset=['declarationDate'])
     fema_df['Date']=pd.to_datetime(fema_df['declarationDate'])
@@ -208,7 +199,6 @@ def _(fema_df):
 @app.cell
 def _(disasters_df, events_df, pd):
     disasters_df['declarationDate'] = pd.to_datetime(disasters_df['declarationDate'], errors='coerce')
-    #disasters_df['declarationDate'] = disasters_df['declarationDate'].dt.tz_localize('UTC')
     disasters_df['event_id'] = None
     disasters_df['Datetime Event Began'] = None
     for pos1, (_, row1) in enumerate(disasters_df.iterrows()):
@@ -224,9 +214,7 @@ def _(disasters_df, events_df, pd):
 @app.cell
 def _(disasters_df, fema_df, pd):
     fema_df2 = pd.merge(fema_df,disasters_df,on="disasterNumber", how="left")
-    #fema_df2=fema_df2.iloc[:,[0,1,2]]
     fema_df3=fema_df2.groupby('event_id')['federalObligatedAmount'].sum()
-
     fema_df3
     return (fema_df3,)
 
@@ -280,90 +268,79 @@ def _(connection, pd):
     return
 
 
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from outages
+        """,
+        engine=connection
+    )
+    return
+
+
+app._unparsable_cell(
+    r"""
+    select {scope}, count(*) as number_of_events, sum(duration) as summary_duration from outages o
+    on strftime('%Y', o.start_time) = e.year AND o.fips=e.fips
+    group by {scope}
+    order by number_of_events desc
+    """,
+    name="_"
+)
+
+
 @app.cell
-def _(df):
-    df.describe().round(2)
+def _(connection, pd):
+    def normalize(scope):
+        query1 = f""" 
+            select c.state as state2, c.name as county, o.{scope}, avg(gdp) as summary_avg_gdp, avg(income) as summary_avg_income, count(*) as number_of_events, sum(duration * mean_customers) as summary_customer_hours, sum(duration) as summary_duration from outages o
+            join econ_facts e on strftime('%Y', o.start_time) = e.year AND o.fips=e.fips
+            join counties c on c.fips = o.fips
+            group by o.{scope}, c.state
+            order by number_of_events desc
+        """
+        query2 = f"""
+            select c.{scope}, avg(gdp) over (partition by c.{scope}) as summary_avg_gdp, avg(income) over (partition by c.{scope}) as summary_avg_income from econ_facts e
+            join counties c on c.fips = e.fips
+            group by c.{scope}
+        """
+        events = pd.read_sql(query1, connection)
+        econ = pd.read_sql(query2, connection)
+        total_events = events['number_of_events'].sum()
+        total_duration = events['summary_duration'].sum()
+        total_customer_hours = events['summary_customer_hours'].sum()
+        total_gdp = econ['summary_avg_gdp'].sum()
+        total_income = econ['summary_avg_income'].sum()
+        events['percent_of_gdp'] = (events['summary_avg_gdp']/total_gdp*100).round(4)
+        events['percent_of_income'] = (events['summary_avg_income']/total_income*100).round(4)
+        events['percent_of_events'] = (events['number_of_events']/total_events*100).round(4)
+        events['percent_of_duration'] = (events['summary_duration']/total_duration*100).round(4)
+        events['percent_of_customer_hours'] = (events['summary_customer_hours']/total_customer_hours*100).round(4)
+        #print(econ)
+        return events
+    scopes = (['state','fips'])
+    for scope in scopes:
+        normal_df=normalize(scope)
+        #print(normal_df)
+        normal_df.to_sql(f"{scope}_summary", con=connection, if_exists='replace', index=False)
     return
 
 
 @app.cell
-def _(df, pd):
-    def _():
-        #count and normalize Events per state
-        events = df['state'].value_counts()
-        events_df = pd.DataFrame(events.rename_axis('State').reset_index(name='Event Count'))
-        sum_events = df['state'].value_counts().sum()
-        events_pu_df = events_df.copy()
-        events_pu_df['Events'] = pd.DataFrame(events_df['Event Count'].apply(lambda x: x/sum_events*100))
-
-        #count and normalize Duration per state
-        duration = df.groupby('state')['duration'].sum()
-        duration_df = pd.DataFrame(duration.rename_axis('State').reset_index(name='Duration(h)'))
-        sum_duration = duration_df['Duration(h)'].sum()
-        duration_pu_df = duration_df.copy()
-        duration_pu_df['Duration'] = pd.DataFrame(duration_df['Duration(h)'].apply(lambda x:x/sum_duration*100))
-
-        #count and normalize customer-hours per state
-        df['customer-hours']=(df['min_customers']+df['max_customers'])/2*df['duration']
-        csthrs = df.groupby('state')['customer-hours'].sum()
-        csthrs_df = pd.DataFrame(csthrs.rename_axis('State').reset_index(name='customer-hours'))
-        csthrs_df
-        sum_csthrs = df['customer-hours'].sum()
-        csthrs_pu_df = csthrs_df.copy()
-        csthrs_pu_df['Customer-hours'] = pd.DataFrame(csthrs_df['customer-hours'].apply(lambda x: x/sum_csthrs*100))
-
-        #merge dfs
-        bystate_df=events_pu_df.merge(duration_pu_df)
-        bystate_df=bystate_df.merge(csthrs_pu_df)
-
-        #drop not-normalized columns and minor states
-        bystate_df2=bystate_df.drop(['Event Count','Duration(h)','customer-hours'],axis=1)
-        bystate_df2=bystate_df2[bystate_df2['Events']>1]
-        bystate_df2.set_index('State',inplace=True)
-        #print(bystate_df2)
-
-        #count and normalize Count per Event
-        events = df['Event'].value_counts()
-        events_df = pd.DataFrame(events.rename_axis('Event').reset_index(name='Event Count'))
-        sum_events = df['Event'].value_counts().sum()
-        events_pu_df = events_df.copy()
-        events_pu_df['Events'] = pd.DataFrame(events_df['Event Count'].apply(lambda x: x/sum_events*100))
-
-        #count and normalize Duration per Event
-        duration = df.groupby('Event')['duration'].sum()
-        duration_df = pd.DataFrame(duration.rename_axis('Event').reset_index(name='Duration(h)'))
-        sum_duration = duration_df['Duration(h)'].sum()
-        duration_pu_df = duration_df.copy()
-        duration_pu_df['Duration'] = pd.DataFrame(duration_df['Duration(h)'].apply(lambda x:x/sum_duration*100))
-
-        #count and normalize customer-hours per Event
-        df['customer-hours']=(df['min_customers']+df['max_customers'])/2*df['duration']
-        csthrs = df.groupby('Event')['customer-hours'].sum()
-        csthrs_df = pd.DataFrame(csthrs.rename_axis('Event').reset_index(name='customer-hours'))
-        sum_csthrs = df['customer-hours'].sum()
-        csthrs_pu_df = csthrs_df.copy()
-        csthrs_pu_df['Customer-hours'] = pd.DataFrame(csthrs_df['customer-hours'].apply(lambda x: x/sum_csthrs*100))
-
-        #merge dfs
-        byevent_df=events_pu_df.merge(duration_pu_df)
-        byevent_df=byevent_df.merge(csthrs_pu_df)
-
-        #drop not-normalized columns
-        byevent_df2=byevent_df.drop(['Event Count','Duration(h)','customer-hours'],axis=1)
-        byevent_df2.set_index('Event',inplace=True)
-        print(bystate_df2)
-        print("\n\n")
-        return print(byevent_df2)
-
-
-    _()
+def _(connection, pd):
+    pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", connection)
     return
 
 
-@app.cell
-def _(df, econ_df):
-    merged_df = df.merge(econ_df,on='fips')
-    merged_df[['fips','event_id','Event Type','county','income2023','gdp2023']][(merged_df['fips'] == 21111)]
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from state_summary
+        """,
+        engine=connection
+    )
     return
 
 
@@ -506,7 +483,7 @@ def _(df, np, plt):
 def _():
     import marimo as mo
 
-    return
+    return (mo,)
 
 
 if __name__ == "__main__":
