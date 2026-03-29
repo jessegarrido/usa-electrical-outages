@@ -279,51 +279,130 @@ def _(connection, mo):
     return
 
 
-app._unparsable_cell(
-    r"""
-    select {scope}, count(*) as number_of_events, sum(duration) as summary_duration from outages o
-    on strftime('%Y', o.start_time) = e.year AND o.fips=e.fips
-    group by {scope}
-    order by number_of_events desc
-    """,
-    name="_"
-)
+@app.cell
+def _(connection):
+    def drop_by_index(db_path, table, indices):
+    #    conn = sqlite3.connect(db_path)
+        cursor = connection.cursor()
+
+        # Get names from indices
+        cursor.execute(f"PRAGMA table_info({table})")
+        cols = cursor.fetchall()
+
+        # Sort indices in reverse to avoid shifting if you were deleting by index in a list, 
+        # but since we drop by name, we just need to ensure the index exists.
+        names_to_drop = [cols[i][1] for i in indices if i < len(cols)]
+
+        for name in names_to_drop:
+            cursor.execute(f'ALTER TABLE "{table}" DROP COLUMN "{name}"')
+
+        connection.commit()
+
+    return (drop_by_index,)
 
 
 @app.cell
-def _(connection, pd):
+def _(connection, drop_by_index, pd):
     def normalize(scope):
         query1 = f""" 
-            select c.state as state2, c.name as county, o.{scope}, avg(gdp) as summary_avg_gdp, avg(income) as summary_avg_income, count(*) as number_of_events, sum(duration * mean_customers) as summary_customer_hours, sum(duration) as summary_duration from outages o
+            select c.name as county, o.{scope}, count(*) as number_of_events, sum(duration * mean_customers) as summary_customer_hours, sum(duration) as summary_duration from outages o
             join econ_facts e on strftime('%Y', o.start_time) = e.year AND o.fips=e.fips
             join counties c on c.fips = o.fips
-            group by o.{scope}, c.state
+            group by c.{scope}
             order by number_of_events desc
         """
         query2 = f"""
-            select c.{scope}, avg(gdp) over (partition by c.{scope}) as summary_avg_gdp, avg(income) over (partition by c.{scope}) as summary_avg_income from econ_facts e
-            join counties c on c.fips = e.fips
-            group by c.{scope}
+                select  distinct  c.state as state2, c.{scope},sum(gdp/2) over (partition by c.{scope}) as summary_gdp, sum(income/2) over (partition by c.{scope}) as summary_income from econ_facts e
+                left join counties c on e.fips = c.fips
+                order by income desc
         """
         events = pd.read_sql(query1, connection)
         econ = pd.read_sql(query2, connection)
+        events=pd.merge(events,econ,on=[scope])
         total_events = events['number_of_events'].sum()
         total_duration = events['summary_duration'].sum()
         total_customer_hours = events['summary_customer_hours'].sum()
-        total_gdp = econ['summary_avg_gdp'].sum()
-        total_income = econ['summary_avg_income'].sum()
-        events['percent_of_gdp'] = (events['summary_avg_gdp']/total_gdp*100).round(4)
-        events['percent_of_income'] = (events['summary_avg_income']/total_income*100).round(4)
+        total_gdp = econ['summary_gdp'].sum()
+        total_income = econ['summary_income'].sum()
+        events['percent_of_gdp'] = (events['summary_gdp']/total_gdp*100).round(4)
+        events['percent_of_income'] = (events['summary_income']/total_income*100).round(4)
         events['percent_of_events'] = (events['number_of_events']/total_events*100).round(4)
         events['percent_of_duration'] = (events['summary_duration']/total_duration*100).round(4)
         events['percent_of_customer_hours'] = (events['summary_customer_hours']/total_customer_hours*100).round(4)
-        #print(econ)
         return events
-    scopes = (['state','fips'])
+    scopes = (['fips','state'])
     for scope in scopes:
         normal_df=normalize(scope)
-        #print(normal_df)
-        normal_df.to_sql(f"{scope}_summary", con=connection, if_exists='replace', index=False)
+        normal_df.to_sql(f"{scope}_normalized", con=connection, if_exists='replace', index=False)
+    drop_by_index('outages.db', 'state_normalized', [0,3,4,5,6,7])
+    drop_by_index('outages.db', 'fips_normalized', [1,3,4,6,7])
+
+
+    return (scope,)
+
+
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from fips_normalized
+        """,
+        engine=connection
+    )
+    return
+
+
+@app.cell
+def _(connection, pd, scope):
+    query1 = f""" 
+        select c.name as county, o.{scope}, count(*) as number_of_events, sum(duration * mean_customers) as summary_customer_hours, sum(duration) as summary_duration from outages o
+        join econ_facts e on strftime('%Y', o.start_time) = e.year AND o.fips=e.fips
+        join counties c on c.fips = o.fips
+        group by c.{scope}
+        order by number_of_events desc
+    """
+    #scope2='fips'
+    query2 = f"""
+            select  distinct  c.state as state2, c.{scope},sum(gdp/2) over (partition by c.{scope}) as summary_gdp, sum(income/2) over (partition by c.{scope}) as summary_income from econ_facts e
+            left join counties c on e.fips = c.fips
+            order by income desc
+        """
+    events = pd.read_sql(query1, connection)
+    econ = pd.read_sql(query2, connection)
+    events=pd.merge(events,econ,on=[scope])
+    total_events = events['number_of_events'].sum()
+    total_duration = events['summary_duration'].sum()
+    total_customer_hours = events['summary_customer_hours'].sum()
+    total_gdp = econ['summary_gdp'].sum()
+    total_income = econ['summary_income'].sum()
+    events['percent_of_gdp'] = (events['summary_gdp']/total_gdp*100).round(4)
+    events['percent_of_income'] = (events['summary_income']/total_income*100).round(4)
+    events['percent_of_events'] = (events['number_of_events']/total_events*100).round(4)
+    events['percent_of_duration'] = (events['summary_duration']/total_duration*100).round(4)
+    events
+
+    return (events,)
+
+
+@app.cell
+def _(scope):
+    scope
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from state_normalized
+        """,
+        engine=connection
+    )
     return
 
 
@@ -337,7 +416,18 @@ def _(connection, pd):
 def _(connection, mo):
     _df = mo.sql(
         f"""
-        select * from state_summary
+        select * from fips_normalized
+        """,
+        engine=connection
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from state_normalized
         """,
         engine=connection
     )
