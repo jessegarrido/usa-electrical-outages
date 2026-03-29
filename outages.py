@@ -7,13 +7,15 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     #Imports
+    import marimo as mo
     import pandas as pd
     import matplotlib.pyplot as plt
     import numpy as np
     import datetime
     import sqlite3
+    import seaborn as sns
 
-    return np, pd, plt, sqlite3
+    return mo, pd, plt, sns, sqlite3
 
 
 @app.cell(hide_code=True)
@@ -233,7 +235,7 @@ def _(disasters_df, fema_df3, pd):
 def _(df, fema_facts_df, pd):
     events_table_df = pd.merge(df,fema_facts_df,how="left",left_on='event_id',right_on='name')
     events_table_df['outage_id']=events_table_df.index+1
-    events_table_df=events_table_df.iloc[:,[-1,15,4,5,6,7,8,10,9,11,12,13]]
+    events_table_df=events_table_df.iloc[:,[-1,15,14,5,6,7,8,10,9,11,12,13]]
     events_table_df.columns=['outage_id','disaster_id','type','fips','state','county','start_time','end_time','duration','min_customers','max_customers','mean_customers']
     events_table_df
     return (events_table_df,)
@@ -336,9 +338,7 @@ def _(connection, drop_by_index, pd):
         normal_df.to_sql(f"{scope}_normalized", con=connection, if_exists='replace', index=False)
     drop_by_index('outages.db', 'state_normalized', [0,3,4,5,6,7])
     drop_by_index('outages.db', 'fips_normalized', [1,3,4,6,7])
-
-
-    return (scope,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -352,97 +352,35 @@ def _(connection, mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from state_normalized
+        """,
+        engine=connection
+    )
+    return
+
+
 @app.cell
-def _(connection, pd, scope):
-    query1 = f""" 
-        select c.name as county, o.{scope}, count(*) as number_of_events, sum(duration * mean_customers) as summary_customer_hours, sum(duration) as summary_duration from outages o
-        join econ_facts e on strftime('%Y', o.start_time) = e.year AND o.fips=e.fips
-        join counties c on c.fips = o.fips
-        group by c.{scope}
-        order by number_of_events desc
+def _(connection, pd, plt):
+    graph1query = """
+        select state, percent_of_customer_hours as 'Customer-Hours' , percent_of_duration as Duration, percent_of_events as 'Number of Events'
+        from state_normalized
+        order by percent_of_customer_hours desc
+        limit 10
     """
-    #scope2='fips'
-    query2 = f"""
-            select  distinct  c.state as state2, c.{scope},sum(gdp/2) over (partition by c.{scope}) as summary_gdp, sum(income/2) over (partition by c.{scope}) as summary_income from econ_facts e
-            left join counties c on e.fips = c.fips
-            order by income desc
-        """
-    events = pd.read_sql(query1, connection)
-    econ = pd.read_sql(query2, connection)
-    events=pd.merge(events,econ,on=[scope])
-    total_events = events['number_of_events'].sum()
-    total_duration = events['summary_duration'].sum()
-    total_customer_hours = events['summary_customer_hours'].sum()
-    total_gdp = econ['summary_gdp'].sum()
-    total_income = econ['summary_income'].sum()
-    events['percent_of_gdp'] = (events['summary_gdp']/total_gdp*100).round(4)
-    events['percent_of_income'] = (events['summary_income']/total_income*100).round(4)
-    events['percent_of_events'] = (events['number_of_events']/total_events*100).round(4)
-    events['percent_of_duration'] = (events['summary_duration']/total_duration*100).round(4)
-    events
-
-    return (events,)
-
-
-@app.cell
-def _(scope):
-    scope
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from state_normalized
-        """,
-        engine=connection
-    )
-    return
-
-
-@app.cell
-def _(connection, pd):
-    pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", connection)
-    return
-
-
-@app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from fips_normalized
-        """,
-        engine=connection
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from state_normalized
-        """,
-        engine=connection
-    )
-    return
-
-
-@app.cell
-def _(bystate_df2, plt):
-    bystate_df2.plot(kind='bar')
+    graph1_df = pd.read_sql(graph1query, connection)
+    graph1_df.set_index('state', inplace=True)
+    graph1_df.plot(kind='bar')
     plt.xticks(rotation=45, ha="right", fontsize=8)
     plt.ylabel("Electrical Outages (%)")
     plt.xlabel("")
     plt.title("Where Did Outages Occur?", fontsize=16, pad=20)
 
     ax = plt.gca()
+
     for spine in ax.spines.values():
         spine.set_linewidth(0.5)
         spine.set_alpha(0.5)
@@ -455,113 +393,111 @@ def _(bystate_df2, plt):
     return
 
 
-@app.cell
-def _(byevent_df2, plt):
-    def _():
-        byevent_df2.plot(kind='bar')
-        plt.xticks(rotation=45, ha="right", fontsize=8)
-        plt.ylabel("Electrical Outages (%)")
-        plt.xlabel("")
-        plt.title("What Caused Electrical Outages?", fontsize=16, pad=20)
-
-        ax = plt.gca()
-        for spine in ax.spines.values():
-            spine.set_linewidth(0.5)
-            spine.set_alpha(0.5)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-
-        plt.tight_layout()
-        plt.savefig(r'plots/OutagesPerEventTypeBarPlot.png')
-        return plt.show()
-
-
-    _()
-    return
-
-
-@app.cell
-def _(byevent_df2, plt):
-    def _():
-        byevent_df2.plot(kind='bar')
-        plt.xticks(rotation=45, ha="right", fontsize=8)
-        plt.ylabel("Electrical Outages (%)")
-        plt.xlabel("")
-        plt.title("What Caused Electrical Outages?", fontsize=16, pad=20)
-
-        ax = plt.gca()
-        for spine in ax.spines.values():
-            spine.set_linewidth(0.5)
-            spine.set_alpha(0.5)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-
-        plt.tight_layout()
-        plt.savefig(r'plots/OutagesPerEventTypeBarPlot.png')
-        return plt.show()
-
-
-    _()
-    return
-
-
-@app.cell
-def _(byevent_df2, events, plt):
-    #plt.figure(figsize=(8,8))
-    plt.pie(
-        byevent_df2['Events'],
-        labels=None,
-        startangle=110,
-        autopct="%1.1f%%",
-        #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
-                )
-    plt.title("Outages Overwhelmingly Result From Weather")
-    plt.legend(
-        labels = events.index,
-        loc="lower right",
+@app.cell(hide_code=True)
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from fips_normalized
+        """,
+        engine=connection
     )
-
-    plt.tight_layout()
-    plt.savefig(r'plots/OutageEventTypesPieChart.png')
-    plt.show()
     return
 
 
 @app.cell
-def _(df, np, plt):
+def _(connection, pd, plt):
     def _():
-        plt.Figure(figsize=(10,6))
-        # Calculate the best-fit line
-        x=df["duration"]/24
-        y=df["max_customers"]
-        z = np.polyfit(x,y , 1)
-        p = np.poly1d(z)
-        plt.scatter(
-                    x, 
-                    y,
-                    color = "#D4D4D4",
-                    alpha = 0.7,
-                    s = 10
-                    )
-        plt.plot(x, p(x), "r--", label="Linear Trend Line")  # 'r--' is for a red dashed line         
-        plt.ylim(1, 150000)
-        plt.xlabel("Outage Duration(d)")
-        plt.ylabel("Peak Customers Impacted")
+        graph_query = """
+            select county, state2 as state, percent_of_customer_hours as 'Customer-Hours', percent_of_duration as Duration, percent_of_events as 'Number of Events' from fips_normalized
+            order by percent_of_customer_hours desc
+            limit 15
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        graph_df['county']= graph_df['county'] + ", " + graph_df['state']
+        graph_df.set_index('county', inplace=True)
+        graph_df.plot(kind='bar')
+        plt.xticks(rotation=45, ha="right", fontsize=8)
+        plt.ylabel("Electrical Outages (%)")
+        plt.xlabel("")
+        plt.title("Where Did Outages Occur?", fontsize=16, pad=20)
 
         ax = plt.gca()
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        #ax.set_xscale('log')
-        #ax.set_yscale('log')
-
-        ax.set_title("Customers Impacted Rises With Outage Duration", fontsize = 18, pad=35)
 
         for spine in ax.spines.values():
-            spine.set_linewidth(0.25)
+            spine.set_linewidth(0.5)
             spine.set_alpha(0.5)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
         plt.tight_layout()
-        plt.savefig(r'plots/NumberImpactedVDuration.png')
-        plt.legend()
+        plt.savefig(r'plots\OutagesPerStateBarPlot.png')
+        plt.show()
+
+    _()
+    return
+
+
+@app.cell
+def _(connection, pd, plt):
+    def _():
+        graph_query = """
+        select type, round(sum(duration*mean_customers) * 100 / (select sum(duration*mean_customers) from outages)) as 'Customer-Hours' , round(sum(duration) * 100/ (select sum(duration) from outages)) as Duration, count(*) * 100 / (select count(*) from outages) as 'Number of Events'
+        from outages
+        group by type
+        order by count(*) desc
+        limit 10
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        graph_df.set_index('type', inplace=True)
+        graph_df.plot(kind='bar')
+        plt.xticks(rotation=45, ha="right", fontsize=8)
+        plt.ylabel("Electrical Outages (%)")
+        plt.xlabel("")
+        plt.title("What Caused Electrical Outages?", fontsize=16, pad=20)
+
+        ax = plt.gca()
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+            spine.set_alpha(0.5)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+        plt.savefig(r'plots/OutagesPerEventTypeBarPlot.png')
+        return plt.show()
+    _()
+    return
+
+
+@app.cell
+def _(connection, pd, plt, sns):
+    def _():
+        #plt.figure(figsize=(8,8))
+        graph_query = """
+        select type, round(sum(duration*mean_customers) * 100 / (select sum(duration*mean_customers) from outages)) as 'Customer-Hours' , round(sum(duration) * 100/ (select sum(duration) from outages)) as Duration, count(*) * 100 / (select count(*) from outages) as 'Number of Events'
+        from outages
+        group by type
+        order by count(*) desc
+        limit 3
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        #graph_df.set_index('type', inplace=True)
+        # define Seaborn color palette to use
+        colors = sns.color_palette('dark')
+        explode = [0, 0.1, 0.1]
+        plt.pie(
+            graph_df['Number of Events'],
+            labels=graph_df['type'],
+            colors=colors,
+            explode=explode,
+            #startangle=110,
+            #autopct="%1.1f%%",
+            #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
+                    )
+        plt.title("Outages Overwhelmingly Result From Weather")
+
+        plt.tight_layout()
+        plt.savefig(r'plots/OutageEventTypesPieChart.png')
         return plt.show()
 
 
@@ -570,10 +506,120 @@ def _(df, np, plt):
 
 
 @app.cell
-def _():
-    import marimo as mo
+def _(graph_df):
+    graph_df
+    return
 
-    return (mo,)
+
+@app.cell
+def _(connection, pd):
+    graph_query = """
+    select * from state_normalized
+    """
+    graph_df = pd.read_sql(graph_query, connection)
+    graph_df
+    return (graph_df,)
+
+
+@app.cell
+def _(connection, pd, plt):
+    def _():
+        graph_query = """
+        select * from state_normalized
+        where percent_of_customer_hours > .5
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        plt.Figure(figsize=(20,10))
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.scatter(
+                    y="percent_of_gdp", 
+                    x="percent_of_customer_hours",
+                    data=graph_df,
+                    s = 8
+                    )
+        plt.ylabel("Percent of GDP")
+        plt.xlabel("Percent of Customer-Hours")
+        plt.title("Leading Outage Times Do Not Correlate to GDP")
+
+        for idx, row in graph_df.iterrows():
+            if row['percent_of_customer_hours'] > .6:
+                ax.annotate(row['state'], # The label text from the 'labels' column
+                            (row['percent_of_customer_hours'],row['percent_of_gdp']), # The x, y coordinates
+                            textcoords="offset points", # Position the text relative to the point
+                            xytext=(0, 5), # Offset the text by 5 points vertically
+                            ha='center', # Center the text horizontally
+                            fontsize=9) # Adjust font size
+        plt.savefig(r'plots/GDPvCustomer-Hours.png')
+        return plt.show()
+    _()
+    return
+
+
+@app.cell
+def _(connection, pd, plt):
+    def _():
+        graph_query = """
+        select * from state_normalized
+        where percent_of_customer_hours > .5
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        plt.Figure(figsize=(20,10))
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.scatter(
+                    y="percent_of_income", 
+                    x="percent_of_customer_hours",
+                    data=graph_df,
+                    s = 8
+                    )
+        plt.ylabel("Percent of Income")
+        plt.xlabel("Percent of Customer-Hours")
+        plt.title("Leading Outage Times Do Not Correlate to Income")
+
+        for idx, row in graph_df.iterrows():
+           # if row['percent_of_customer_hours'] > .6:
+                ax.annotate(row['state'], # The label text from the 'labels' column
+                            (row['percent_of_customer_hours'],row['percent_of_income']), # The x, y coordinates
+                            textcoords="offset points", # Position the text relative to the point
+                            xytext=(0, 5), # Offset the text by 5 points vertically
+                            ha='center', # Center the text horizontally
+                            fontsize=9) # Adjust font size
+        plt.savefig(r'plots/IncomevCustomer-Hours.png')
+        return plt.show()
+    _()
+    return
+
+
+@app.cell
+def _(connection, pd, plt):
+    def _():
+        graph_query = """
+        select * from fips_normalized 
+        where percent_of_customer_hours > 1.2
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        plt.Figure(figsize=(20,10))
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.scatter(
+                    x="percent_of_customer_hours",
+                    y="percent_of_gdp", 
+                    data=graph_df,
+                    s = 8
+                    )
+        plt.xlabel("Percent of Customer-Hours")
+        plt.ylabel("Percent of GDP")
+        plt.title("Leading Outage Times Do Not Correlate to GDP")
+
+        for idx, row in graph_df.iterrows():
+                 ax.annotate((row['county'] + ", " + row['state2']), # The label text from the 'labels' column
+                        (row['percent_of_customer_hours'],row['percent_of_gdp']), # The x, y coordinates
+                        textcoords="offset points", # Position the text relative to the point
+                        xytext=(0, 5), # Offset the text by 5 points vertically
+                        ha='center', # Center the text horizontally
+                        fontsize=9) # Adjust font size
+        plt.savefig(r'plots/GDPvCustomer-Hours.png')
+        return plt.show()
+    _()
+    return
 
 
 if __name__ == "__main__":
