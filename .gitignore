@@ -14,3 +14,5 @@ wheels/
 # don't upload data
 #*.csv
 >>>>>>> 5240c3e39ef5b3279c6753fd03ae5a1f28a48468
+#db
+*.db
