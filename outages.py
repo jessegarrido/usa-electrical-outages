@@ -15,20 +15,21 @@ def _():
     import sqlite3
     import seaborn as sns
 
-    return mo, pd, plt, sns, sqlite3
+    return mo, pd, plt, sqlite3
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Read in data from csv
+    <h2>Data Importing, Cleaning, and Wrangling</h2>
+    <ul><li>Read in DOE outage event data from csv</li></ul>
     """)
     return
 
 
 @app.cell
 def _(pd):
-    #Read in Department of Energy outage data
+    #Read in DOE outage data
     df = pd.read_csv(r'data\eaglei_outages_with_events_2022.csv')
     df2 = pd.read_csv(r'data\eaglei_outages_with_events_2023.csv')
     df = pd.concat([df,df2])
@@ -38,6 +39,14 @@ def _(pd):
     df.head()
     df
     return (df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <ul><li>Parse Event data from 37 into 4 unique categories</li></ul>
+    """)
+    return
 
 
 @app.cell
@@ -66,6 +75,14 @@ def _(df, pd):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <ul><li>Read in economic data from the US Beareau of Economic Anlysis</li></ul>
+    """)
+    return
+
+
 @app.cell
 def _(pd):
     #Annual Income Data from Bureau of Economic Analysis
@@ -81,17 +98,32 @@ def _(pd):
     return df3, econ_df
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <ul><li>Reprocess the economic data to meet the database design schema</li></ul>
+    """)
+    return
+
+
 @app.cell
 def _(econ_df, pd):
     econ_facts_df = pd.DataFrame()
     # Using iterrows()
     for index, row in econ_df.iterrows():
-      #  new_row = [len(econ_facts_df),econ_facts_df]
         for year in range(2022,2024):
             new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
             econ_facts_df = pd.concat([econ_facts_df,new_row], ignore_index=True)
     econ_facts_df
     return (econ_facts_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <ul><li>Create a dataframe for a 'counties' database table from a dictionary containing state abbreviations</li></ul>
+    """)
+    return
 
 
 @app.cell
@@ -153,13 +185,11 @@ def _(df3):
             'VI': 'Virgin Islands'
         }
     counties_df=df3.iloc[:,[0,1]].copy()
-    #counties_df['name']=None
     counties_df.loc[:, 'state']=counties_df.name.str.split(',').str[-1]
     counties_df.loc[:, 'name']=counties_df.name.str.split(',').str[0] 
 
     # Use .loc to explicitly set values on the original DataFrame
     counties_df.loc[:, 'state'] = counties_df['state'].replace('\\*', '', regex=True)
-
     counties_df.loc[:, 'state'] = (counties_df['state'].astype(str)
             .str.strip() 
             .map(state_abbreviations) 
@@ -167,6 +197,14 @@ def _(df3):
     )
     counties_df
     return (counties_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <ul><li>Import the table of FEMA grants </li></ul>
+    """)
+    return
 
 
 @app.cell
@@ -216,7 +254,13 @@ def _(disasters_df, events_df, pd):
 @app.cell
 def _(disasters_df, fema_df, pd):
     fema_df2 = pd.merge(fema_df,disasters_df,on="disasterNumber", how="left")
-    fema_df3=fema_df2.groupby('event_id')['federalObligatedAmount'].sum()
+
+    fema_df2=fema_df2.iloc[:,[10,5]]
+    fema_df3=fema_df2.groupby('event_id').sum()
+    #fema_df3=pd.merge(fema_df3,fema_df2,on="event_id",how="left")
+    fema_total=fema_df3['federalObligatedAmount'].sum()
+    #print(fema_df2)
+    fema_df3['pct_of_fema']=round(fema_df3['federalObligatedAmount']/fema_total*100,2)
     fema_df3
     return (fema_df3,)
 
@@ -225,8 +269,8 @@ def _(disasters_df, fema_df, pd):
 def _(disasters_df, fema_df3, pd):
     fema_facts_df = pd.merge(fema_df3,disasters_df,on="event_id", how="left")
     fema_facts_df['disaster_id']=fema_facts_df.index+1
-    fema_facts_df=fema_facts_df.iloc[:,[7,0,4,5,3,1]]
-    fema_facts_df.columns=['disaster_id','name','date','type','state','amount']
+    fema_facts_df=fema_facts_df.iloc[:,[8,0,5,6,4,1,2]]
+    fema_facts_df.columns=['disaster_id','name','date','type','state','amount','percent']
     fema_facts_df
     return (fema_facts_df,)
 
@@ -241,9 +285,11 @@ def _(df, fema_facts_df, pd):
     return (events_table_df,)
 
 
-@app.cell
-def _(econ_facts_df):
-    econ_facts_df
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <h1>Create the project database</h1>
+    """)
     return
 
 
@@ -377,7 +423,7 @@ def _(connection, pd, plt):
     plt.xticks(rotation=45, ha="right", fontsize=8)
     plt.ylabel("Electrical Outages (%)")
     plt.xlabel("")
-    plt.title("Where Did Outages Occur?", fontsize=16, pad=20)
+    plt.title("In What States Did Outages Occur?", fontsize=16, pad=20)
 
     ax = plt.gca()
 
@@ -419,7 +465,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Electrical Outages (%)")
         plt.xlabel("")
-        plt.title("Where Did Outages Occur?", fontsize=16, pad=20)
+        plt.title("In What Counties Did Outages Occur?", fontsize=16, pad=20)
 
         ax = plt.gca()
 
@@ -470,7 +516,7 @@ def _(connection, pd, plt):
 
 
 @app.cell
-def _(connection, pd, plt, sns):
+def _(connection, pd, plt):
     def _():
         #plt.figure(figsize=(8,8))
         graph_query = """
@@ -483,15 +529,14 @@ def _(connection, pd, plt, sns):
         graph_df = pd.read_sql(graph_query, connection)
         #graph_df.set_index('type', inplace=True)
         # define Seaborn color palette to use
-        colors = sns.color_palette('dark')
+        #colors = sns.color_palette('dark')
         explode = [0, 0.1, 0.1]
         plt.pie(
             graph_df['Number of Events'],
             labels=graph_df['type'],
-            colors=colors,
+            #colors=colors,
             explode=explode,
-            #startangle=110,
-            #autopct="%1.1f%%",
+            autopct="%1.1f%%",
             #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
                     )
         plt.title("Outages Overwhelmingly Result From Weather")
@@ -506,49 +551,44 @@ def _(connection, pd, plt, sns):
 
 
 @app.cell
-def _(graph_df):
-    graph_df
-    return
-
-
-@app.cell
-def _(connection, pd):
-    graph_query = """
-    select * from state_normalized
-    """
-    graph_df = pd.read_sql(graph_query, connection)
-    graph_df
-    return (graph_df,)
-
-
-@app.cell
 def _(connection, pd, plt):
     def _():
         graph_query = """
-        select * from state_normalized
+        select state, percent_of_customer_hours, percent_of_gdp as GDP, percent_of_income as Income from state_normalized
         where percent_of_customer_hours > .5
         """
         graph_df = pd.read_sql(graph_query, connection)
         plt.Figure(figsize=(20,10))
+
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.scatter(
-                    y="percent_of_gdp", 
-                    x="percent_of_customer_hours",
-                    data=graph_df,
-                    s = 8
-                    )
-        plt.ylabel("Percent of GDP")
+        for column in graph_df.columns[2:]:  # Skip the first two columns (X)
+            ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
+       # ax.scatter(
+                    #y="percent_of_gdp", 
+                   # y="percent_of_income",
+                   # x="percent_of_customer_hours",
+                  #  data=graph_df,
+                 #   s = 8
+                  #  )
+        plt.ylabel("Percent of Wealth")
         plt.xlabel("Percent of Customer-Hours")
-        plt.title("Leading Outage Times Do Not Correlate to GDP")
+        plt.title("States With Leading Outage Time Do Not Correlate to State GDP")
+        ax.legend()
 
         for idx, row in graph_df.iterrows():
-            if row['percent_of_customer_hours'] > .6:
                 ax.annotate(row['state'], # The label text from the 'labels' column
-                            (row['percent_of_customer_hours'],row['percent_of_gdp']), # The x, y coordinates
+                            (row['percent_of_customer_hours'],row['Income']), # The x, y coordinates
                             textcoords="offset points", # Position the text relative to the point
                             xytext=(0, 5), # Offset the text by 5 points vertically
                             ha='center', # Center the text horizontally
                             fontsize=9) # Adjust font size
+        #for idx, row in graph_df.iterrows():
+        #    ax.annotate(row['state'], # The label text from the 'labels' column
+         #               (row['percent_of_customer_hours'],row['percent_of_income']), # The x, y coordinates
+         #               textcoords="offset points", # Position the text relative to the point
+         #               xytext=(0, 5), # Offset the text by 5 points vertically
+         #               ha='center', # Center the text horizontally
+         #               fontsize=9) # Adjust font size
         plt.savefig(r'plots/GDPvCustomer-Hours.png')
         return plt.show()
     _()
@@ -559,59 +599,28 @@ def _(connection, pd, plt):
 def _(connection, pd, plt):
     def _():
         graph_query = """
-        select * from state_normalized
-        where percent_of_customer_hours > .5
-        """
-        graph_df = pd.read_sql(graph_query, connection)
-        plt.Figure(figsize=(20,10))
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.scatter(
-                    y="percent_of_income", 
-                    x="percent_of_customer_hours",
-                    data=graph_df,
-                    s = 8
-                    )
-        plt.ylabel("Percent of Income")
-        plt.xlabel("Percent of Customer-Hours")
-        plt.title("Leading Outage Times Do Not Correlate to Income")
-
-        for idx, row in graph_df.iterrows():
-           # if row['percent_of_customer_hours'] > .6:
-                ax.annotate(row['state'], # The label text from the 'labels' column
-                            (row['percent_of_customer_hours'],row['percent_of_income']), # The x, y coordinates
-                            textcoords="offset points", # Position the text relative to the point
-                            xytext=(0, 5), # Offset the text by 5 points vertically
-                            ha='center', # Center the text horizontally
-                            fontsize=9) # Adjust font size
-        plt.savefig(r'plots/IncomevCustomer-Hours.png')
-        return plt.show()
-    _()
-    return
-
-
-@app.cell
-def _(connection, pd, plt):
-    def _():
-        graph_query = """
-        select * from fips_normalized 
+        select concat(county, ", ", state2) as county, percent_of_customer_hours, percent_of_gdp as GDP, percent_of_income as Income from fips_normalized 
         where percent_of_customer_hours > 1.2
         """
         graph_df = pd.read_sql(graph_query, connection)
         plt.Figure(figsize=(20,10))
         fig, ax = plt.subplots(figsize=(8, 6))
-        ax.scatter(
-                    x="percent_of_customer_hours",
-                    y="percent_of_gdp", 
-                    data=graph_df,
-                    s = 8
-                    )
+        for column in graph_df.columns[2:]:  # Skip the first two columns (X)
+            ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
+        #ax.scatter(
+        #            x="percent_of_customer_hours",
+         #           y="percent_of_gdp", 
+         #           data=graph_df,
+         #           s = 8
+        #            )
         plt.xlabel("Percent of Customer-Hours")
-        plt.ylabel("Percent of GDP")
-        plt.title("Leading Outage Times Do Not Correlate to GDP")
+        plt.ylabel("Percent of Wealth")
+        plt.title("Counties With Leading Outage Times Do Not Correlate to Wealth")
+        ax.legend()
 
         for idx, row in graph_df.iterrows():
-                 ax.annotate((row['county'] + ", " + row['state2']), # The label text from the 'labels' column
-                        (row['percent_of_customer_hours'],row['percent_of_gdp']), # The x, y coordinates
+                    ax.annotate(row['county'], # The label text from the 'labels' column
+                        (row['percent_of_customer_hours'],row['Income']), # The x, y coordinates
                         textcoords="offset points", # Position the text relative to the point
                         xytext=(0, 5), # Offset the text by 5 points vertically
                         ha='center', # Center the text horizontally
