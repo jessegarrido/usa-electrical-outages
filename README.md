@@ -3,7 +3,7 @@ This project explores 2022-2023 USA electrical outage data. It demonstrates data
 
 ## How to Use
 1. Clone this repository from a Git Bash shell<br>    
-      '''git clone https://github.com/jessegarrido/usa-electrical-outages.git'''<br>
+      ```git clone https://github.com/jessegarrido/usa-electrical-outages.git```<br>
 2. Navigate into the project folder<br>
       cd usa-electrical-outages<br>
 3. Create a virtual environment<br>

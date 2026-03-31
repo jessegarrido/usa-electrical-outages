@@ -366,14 +366,7 @@
     {
       "id": "xXTn",
       "code_hash": "be4f89a68ded4822df6565a7ba96d1ff",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='xXTn-0' random-id='b7db167d-efd3-4793-8b2f-b1749d764595'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;county&#92;&quot;:&#92;&quot;Harris&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:3927,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:1.9278,&#92;&quot;percent_of_income&#92;&quot;:1.5876,&#92;&quot;percent_of_events&#92;&quot;:2.2923,&#92;&quot;percent_of_duration&#92;&quot;:0.9653,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.1676},{&#92;&quot;county&#92;&quot;:&#92;&quot;Brazoria&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:3718,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.0775,&#92;&quot;percent_of_income&#92;&quot;:0.1005,&#92;&quot;percent_of_events&#92;&quot;:2.1703,&#92;&quot;percent_of_duration&#92;&quot;:0.798,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.127},{&#92;&quot;county&#92;&quot;:&#92;&quot;Montgomery&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:3233,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.1658,&#92;&quot;percent_of_income&#92;&quot;:0.235,&#92;&quot;percent_of_events&#92;&quot;:1.8872,&#92;&quot;percent_of_duration&#92;&quot;:0.6643,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.1128},{&#92;&quot;county&#92;&quot;:&#92;&quot;Fort Bend&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2927,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.1607,&#92;&quot;percent_of_income&#92;&quot;:0.2844,&#92;&quot;percent_of_events&#92;&quot;:1.7086,&#92;&quot;percent_of_duration&#92;&quot;:0.533,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0769},{&#92;&quot;county&#92;&quot;:&#92;&quot;Dallas&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2803,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:1.3621,&#92;&quot;percent_of_income&#92;&quot;:0.9169,&#92;&quot;percent_of_events&#92;&quot;:1.6362,&#92;&quot;percent_of_duration&#92;&quot;:1.1712,&#92;&quot;percent_of_customer_hours&#92;&quot;:1.3686},{&#92;&quot;county&#92;&quot;:&#92;&quot;Tarrant&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2772,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.5935,&#92;&quot;percent_of_income&#92;&quot;:0.63,&#92;&quot;percent_of_events&#92;&quot;:1.6181,&#92;&quot;percent_of_duration&#92;&quot;:0.9741,&#92;&quot;percent_of_customer_hours&#92;&quot;:1.1724},{&#92;&quot;county&#92;&quot;:&#92;&quot;Waller&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2430,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.0191,&#92;&quot;percent_of_income&#92;&quot;:0.0146,&#92;&quot;percent_of_events&#92;&quot;:1.4185,&#92;&quot;percent_of_duration&#92;&quot;:0.3329,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0401},{&#92;&quot;county&#92;&quot;:&#92;&quot;Wharton&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2319,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.0089,&#92;&quot;percent_of_income&#92;&quot;:0.0101,&#92;&quot;percent_of_events&#92;&quot;:1.3537,&#92;&quot;percent_of_duration&#92;&quot;:0.4786,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0658},{&#92;&quot;county&#92;&quot;:&#92;&quot;Baltimore (Independent City)&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2052,&#92;&quot;state2&#92;&quot;:&#92;&quot;Maryland&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.2258,&#92;&quot;percent_of_income&#92;&quot;:0.1579,&#92;&quot;percent_of_events&#92;&quot;:1.1978,&#92;&quot;percent_of_duration&#92;&quot;:0.0599,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0471},{&#92;&quot;county&#92;&quot;:&#92;&quot;Baltimore&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2045,&#92;&quot;state2&#92;&quot;:&#92;&quot;Maryland&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.2527,&#92;&quot;percent_of_income&#92;&quot;:0.27,&#92;&quot;percent_of_events&#92;&quot;:1.1937,&#92;&quot;percent_of_duration&#92;&quot;:0.0592,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.133}]&quot;' data-total-rows='2492' data-total-columns='8' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;county&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;number_of_events&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;state2&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;percent_of_gdp&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_income&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_events&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_duration&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_customer_hours&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false' data-download-file-name='&quot;df&quot;'></marimo-table></marimo-ui-element>"
-          }
-        }
-      ],
+      "outputs": [],
       "console": []
     },
     {
@@ -410,20 +403,13 @@
       ]
     },
     {
-      "id": "aqbW",
+      "id": "NCOB",
       "code_hash": "be4f89a68ded4822df6565a7ba96d1ff",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='aqbW-0' random-id='5969d144-23c1-2fcc-be83-9f135e7206b7'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;county&#92;&quot;:&#92;&quot;Harris&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:3927,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:1.9278,&#92;&quot;percent_of_income&#92;&quot;:1.5876,&#92;&quot;percent_of_events&#92;&quot;:2.2923,&#92;&quot;percent_of_duration&#92;&quot;:0.9653,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.1676},{&#92;&quot;county&#92;&quot;:&#92;&quot;Brazoria&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:3718,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.0775,&#92;&quot;percent_of_income&#92;&quot;:0.1005,&#92;&quot;percent_of_events&#92;&quot;:2.1703,&#92;&quot;percent_of_duration&#92;&quot;:0.798,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.127},{&#92;&quot;county&#92;&quot;:&#92;&quot;Montgomery&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:3233,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.1658,&#92;&quot;percent_of_income&#92;&quot;:0.235,&#92;&quot;percent_of_events&#92;&quot;:1.8872,&#92;&quot;percent_of_duration&#92;&quot;:0.6643,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.1128},{&#92;&quot;county&#92;&quot;:&#92;&quot;Fort Bend&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2927,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.1607,&#92;&quot;percent_of_income&#92;&quot;:0.2844,&#92;&quot;percent_of_events&#92;&quot;:1.7086,&#92;&quot;percent_of_duration&#92;&quot;:0.533,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0769},{&#92;&quot;county&#92;&quot;:&#92;&quot;Dallas&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2803,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:1.3621,&#92;&quot;percent_of_income&#92;&quot;:0.9169,&#92;&quot;percent_of_events&#92;&quot;:1.6362,&#92;&quot;percent_of_duration&#92;&quot;:1.1712,&#92;&quot;percent_of_customer_hours&#92;&quot;:1.3686},{&#92;&quot;county&#92;&quot;:&#92;&quot;Tarrant&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2772,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.5935,&#92;&quot;percent_of_income&#92;&quot;:0.63,&#92;&quot;percent_of_events&#92;&quot;:1.6181,&#92;&quot;percent_of_duration&#92;&quot;:0.9741,&#92;&quot;percent_of_customer_hours&#92;&quot;:1.1724},{&#92;&quot;county&#92;&quot;:&#92;&quot;Waller&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2430,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.0191,&#92;&quot;percent_of_income&#92;&quot;:0.0146,&#92;&quot;percent_of_events&#92;&quot;:1.4185,&#92;&quot;percent_of_duration&#92;&quot;:0.3329,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0401},{&#92;&quot;county&#92;&quot;:&#92;&quot;Wharton&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2319,&#92;&quot;state2&#92;&quot;:&#92;&quot;Texas&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.0089,&#92;&quot;percent_of_income&#92;&quot;:0.0101,&#92;&quot;percent_of_events&#92;&quot;:1.3537,&#92;&quot;percent_of_duration&#92;&quot;:0.4786,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0658},{&#92;&quot;county&#92;&quot;:&#92;&quot;Baltimore (Independent City)&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2052,&#92;&quot;state2&#92;&quot;:&#92;&quot;Maryland&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.2258,&#92;&quot;percent_of_income&#92;&quot;:0.1579,&#92;&quot;percent_of_events&#92;&quot;:1.1978,&#92;&quot;percent_of_duration&#92;&quot;:0.0599,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.0471},{&#92;&quot;county&#92;&quot;:&#92;&quot;Baltimore&#92;&quot;,&#92;&quot;number_of_events&#92;&quot;:2045,&#92;&quot;state2&#92;&quot;:&#92;&quot;Maryland&#92;&quot;,&#92;&quot;percent_of_gdp&#92;&quot;:0.2527,&#92;&quot;percent_of_income&#92;&quot;:0.27,&#92;&quot;percent_of_events&#92;&quot;:1.1937,&#92;&quot;percent_of_duration&#92;&quot;:0.0592,&#92;&quot;percent_of_customer_hours&#92;&quot;:0.133}]&quot;' data-total-rows='2492' data-total-columns='8' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;county&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;number_of_events&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;state2&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;percent_of_gdp&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_income&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_events&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_duration&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;percent_of_customer_hours&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false' data-download-file-name='&quot;df&quot;'></marimo-table></marimo-ui-element>"
-          }
-        }
-      ],
+      "outputs": [],
       "console": []
     },
     {
-      "id": "jeyE",
+      "id": "aqbW",
       "code_hash": "be4f89a68ded4822df6565a7ba96d1ff",
       "outputs": [
         {
@@ -456,7 +442,7 @@
       ]
     },
     {
-      "id": "LHpr",
+      "id": "TXez",
       "code_hash": "cf6fd1b2b6071e2bf5d0ecaf1759dfb5",
       "outputs": [
         {
@@ -476,7 +462,7 @@
       ]
     },
     {
-      "id": "szgj",
+      "id": "dNNg",
       "code_hash": "46d13caf3acdd9d79879ef6e1601112b",
       "outputs": [
         {
@@ -496,7 +482,7 @@
       ]
     },
     {
-      "id": "TXez",
+      "id": "yCnT",
       "code_hash": "cf99589ffdbad58fc1fa997f2a5542f2",
       "outputs": [
         {
@@ -509,7 +495,7 @@
       "console": []
     },
     {
-      "id": "yCnT",
+      "id": "wlCL",
       "code_hash": "6cd9326ca1eea6fb265831e424e832b1",
       "outputs": [
         {
@@ -529,7 +515,7 @@
       ]
     },
     {
-      "id": "wlCL",
+      "id": "kqZH",
       "code_hash": "023840b5ac7154d412847ffd93b40b7c",
       "outputs": [
         {
@@ -549,7 +535,7 @@
       ]
     },
     {
-      "id": "kqZH",
+      "id": "wAgl",
       "code_hash": "784233fe99ea2e479e40e4b0cf4888d2",
       "outputs": [
         {
@@ -569,7 +555,7 @@
       ]
     },
     {
-      "id": "LYHK",
+      "id": "rEll",
       "code_hash": "da6df7ac484f9771c270b7d3d6c92182",
       "outputs": [
         {
