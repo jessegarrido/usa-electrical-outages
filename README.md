@@ -16,8 +16,8 @@ This project explores 2022-2023 USA electrical outage data. It demonstrates data
       ```marimo edit outages.py ``` <br>
 6. Press Ctr-Shift-R in the browser window to Run All Cells  <br>
 
-## Example Output
-The analysis shows that most outages occured in certain states, and most outages arise from weather events. It also shows a linear relationship between outage durations and peak customers impacted. 
+
+The analysis shows that most outages occured in certain counties and states, with poor correlation to their relative wealth. Most outages arise from weather events.
 
 ## Data Sources
 - eaglei_outages_with_events_2023 (provided in `data/`)
