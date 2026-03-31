@@ -44,7 +44,7 @@ def _(pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <ul><li>Parse Event data from 37 into 4 unique categories</li></ul>
+    <ul><li>Parse outage type from 37 into 4 unique categories</li></ul>
     """)
     return
 
@@ -62,14 +62,14 @@ def _(df, pd):
         if event.str.contains("weather").any():
             return "Weather"
         if event.str.contains(human_keywords).any():
-            return "Human Intervention"
+            return "Human Activity"
         if event.str.contains(system_keywords).any() & ~event.str.contains(system_exclude_keywords).any():
             return "System Failure"
         return "Unknown"
     df['Event']=df['Event Type'].apply(parse_event)
     print(df['Event'].value_counts())
     print("\n\nWEATHER:",df[df['Event']=="Weather"]['Event Type'].unique(),
-        "\n\nHUMAN INTERVENTION:",df[df['Event']=="Human Intervention"]['Event Type'].unique(),
+        "\n\nHUMAN INTERVENTION:",df[df['Event']=="Human Activity"]['Event Type'].unique(),
         "\n\nSYSTEM FAILURES:",df[df['Event']=="System Failure"]['Event Type'].unique(),
         "\n\nUNKNOWN:",df[df['Event']=="Unknown"]['Event Type'].unique())
     return
@@ -218,6 +218,14 @@ def _(pd):
     fema_df.head()
     fema_df
     return (fema_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Match unique disaster events between outage event and fema grant datasets
+    """)
+    return
 
 
 @app.cell
@@ -411,31 +419,65 @@ def _(connection, mo):
 
 @app.cell
 def _(connection, pd, plt):
-    graph1query = """
-        select state, percent_of_customer_hours as 'Customer-Hours' , percent_of_duration as Duration, percent_of_events as 'Number of Events'
-        from state_normalized
-        order by percent_of_customer_hours desc
-        limit 10
-    """
-    graph1_df = pd.read_sql(graph1query, connection)
-    graph1_df.set_index('state', inplace=True)
-    graph1_df.plot(kind='bar')
-    plt.xticks(rotation=45, ha="right", fontsize=8)
-    plt.ylabel("Electrical Outages (%)")
-    plt.xlabel("")
-    plt.title("In What States Did Outages Occur?", fontsize=16, pad=20)
+    def _():
+        graphquery = """
+            select state, percent_of_customer_hours as 'Customer-Hours' , percent_of_duration as Duration, percent_of_events as 'Number of Events'
+            from state_normalized
+            order by percent_of_customer_hours desc
+            limit 10
+        """
+        graph_df = pd.read_sql(graphquery, connection)
+        graph_df.set_index('state', inplace=True)
+        graph_df.plot(kind='bar')
+        plt.xticks(rotation=45, ha="right", fontsize=8)
+        plt.ylabel("Electrical Outages (%)")
+        plt.xlabel("")
+        plt.title("In What States Did Electrical Outages Occur?", fontsize=16, pad=20)
+    
+        ax = plt.gca()
+    
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+            spine.set_alpha(0.5)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+    
+        plt.tight_layout()
+        plt.savefig(r'plots\OutagesPerStateBarPlot.png')
+        plt.show()
+    _()
+    return
 
-    ax = plt.gca()
 
-    for spine in ax.spines.values():
-        spine.set_linewidth(0.5)
-        spine.set_alpha(0.5)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
-    plt.tight_layout()
-    plt.savefig(r'plots\OutagesPerStateBarPlot.png')
-    plt.show()
+@app.cell
+def _(connection, pd, plt):
+    def _():
+        graphquery = """
+            select state, percent_of_gdp as GDP, percent_of_customer_hours as 'Outage Customer-Hours'
+            from state_normalized
+            order by percent_of_gdp desc
+            limit 4
+        """
+        graph_df = pd.read_sql(graphquery, connection)
+        graph_df.set_index('state', inplace=True)
+        graph_df.plot(kind='bar')
+        plt.xticks(rotation=45, ha="right", fontsize=8)
+        plt.ylabel("(%)")
+        plt.xlabel("")
+        plt.title("The Wealthiest States Experienced the Most Electrical Outages", fontsize=16, pad=20)
+    
+        ax = plt.gca()
+    
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+            spine.set_alpha(0.5)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+    
+        plt.tight_layout()
+        plt.savefig(r'plots\OutagesPerStateBarPlot.png')
+        plt.show()
+    _()
     return
 
 
@@ -539,7 +581,7 @@ def _(connection, pd, plt):
             autopct="%1.1f%%",
             #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
                     )
-        plt.title("Outages Overwhelmingly Result From Weather")
+        plt.title("Outage Events Overwhelmingly Result From Weather")
 
         plt.tight_layout()
         plt.savefig(r'plots/OutageEventTypesPieChart.png')
@@ -563,17 +605,12 @@ def _(connection, pd, plt):
         fig, ax = plt.subplots(figsize=(8, 6))
         for column in graph_df.columns[2:]:  # Skip the first two columns (X)
             ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
-       # ax.scatter(
-                    #y="percent_of_gdp", 
-                   # y="percent_of_income",
-                   # x="percent_of_customer_hours",
-                  #  data=graph_df,
-                 #   s = 8
-                  #  )
         plt.ylabel("Percent of Wealth")
         plt.xlabel("Percent of Customer-Hours")
-        plt.title("States With Leading Outage Time Do Not Correlate to State GDP")
+        plt.title("States With Leading Outage Time Do Not Correlate to Wealth")
         ax.legend()
+        ax.set_yscale('log')
+        ax.set_xscale('log')
 
         for idx, row in graph_df.iterrows():
                 ax.annotate(row['state'], # The label text from the 'labels' column
@@ -582,13 +619,6 @@ def _(connection, pd, plt):
                             xytext=(0, 5), # Offset the text by 5 points vertically
                             ha='center', # Center the text horizontally
                             fontsize=9) # Adjust font size
-        #for idx, row in graph_df.iterrows():
-        #    ax.annotate(row['state'], # The label text from the 'labels' column
-         #               (row['percent_of_customer_hours'],row['percent_of_income']), # The x, y coordinates
-         #               textcoords="offset points", # Position the text relative to the point
-         #               xytext=(0, 5), # Offset the text by 5 points vertically
-         #               ha='center', # Center the text horizontally
-         #               fontsize=9) # Adjust font size
         plt.savefig(r'plots/GDPvCustomer-Hours.png')
         return plt.show()
     _()
@@ -607,16 +637,13 @@ def _(connection, pd, plt):
         fig, ax = plt.subplots(figsize=(8, 6))
         for column in graph_df.columns[2:]:  # Skip the first two columns (X)
             ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
-        #ax.scatter(
-        #            x="percent_of_customer_hours",
-         #           y="percent_of_gdp", 
-         #           data=graph_df,
-         #           s = 8
-        #            )
+
         plt.xlabel("Percent of Customer-Hours")
-        plt.ylabel("Percent of Wealth")
+        plt.ylabel("Percent of US Wealth")
         plt.title("Counties With Leading Outage Times Do Not Correlate to Wealth")
         ax.legend()
+        ax.set_yscale('log')
+        ax.set_xscale('log')
 
         for idx, row in graph_df.iterrows():
                     ax.annotate(row['county'], # The label text from the 'labels' column
@@ -628,6 +655,52 @@ def _(connection, pd, plt):
         plt.savefig(r'plots/GDPvCustomer-Hours.png')
         return plt.show()
     _()
+    return
+
+
+@app.cell
+def _(connection, pd, plt):
+
+    def _():
+        graph_query = """
+            select sn.state, sum(amount), sum(percent) as 'FEMA Grants(%)', percent_of_gdp as GDP, percent_of_income as Income from fema f
+            join state_normalized sn on sn.state = f.state  
+            group by sn.state
+            """
+        graph_df = pd.read_sql(graph_query, connection)
+        graph_df
+        plt.Figure(figsize=(20,10))
+        fig, ax = plt.subplots(figsize=(8, 6))
+        for column in graph_df.columns[3:]:  # Skip the first three columns (X)
+            ax.scatter(graph_df['FEMA Grants(%)'], graph_df[column], label=column)
+
+        plt.xlabel("FEMA Grants (%)")
+        plt.ylabel("Wealth(%)")
+        #plt.title("Counties With Leading Outage Times Do Not Correlate to Wealth")
+        ax.legend()
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        for idx, row in graph_df.iterrows():
+                    ax.annotate(row['state'], # The label text from the 'labels' column
+                        (row['FEMA Grants(%)'],row['Income']), # The x, y coordinates
+                        textcoords="offset points", # Position the text relative to the point
+                        xytext=(0, 5), # Offset the text by 5 points vertically
+                        ha='center', # Center the text horizontally
+                        fontsize=9) # Adjust font size
+        plt.savefig(r'plots/GDPvCustomer-Hours.png')
+        return plt.show()
+    _()
+    return
+
+
+@app.cell
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from fema
+        """,
+        engine=connection
+    )
     return
 
 
