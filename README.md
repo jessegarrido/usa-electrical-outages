@@ -25,6 +25,3 @@ The analysis shows that most outages occured in certain counties and states, wit
 
 ## Author
 Jesse Garrido – Student Data Analyst
-
-## License
-MIT License
