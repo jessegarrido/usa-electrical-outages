@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.22.4"
 app = marimo.App(width="medium")
 
 
@@ -13,7 +13,6 @@ def _():
     import numpy as np
     import datetime
     import sqlite3
-    import seaborn as sns
 
     return mo, pd, plt, sqlite3
 
@@ -215,7 +214,6 @@ def _(pd):
     fema_df=fema_df.dropna(subset=['declarationDate'])
     fema_df['Date']=pd.to_datetime(fema_df['declarationDate'])
     fema_df = fema_df[fema_df['Date'].dt.year > 2021]
-    fema_df.head()
     fema_df
     return (fema_df,)
 
@@ -516,14 +514,10 @@ def _(connection, pd, plt):
         limit 3
         """
         graph_df = pd.read_sql(graph_query, connection)
-        #graph_df.set_index('type', inplace=True)
-        # define Seaborn color palette to use
-        #colors = sns.color_palette('dark')
         explode = [0, 0.1, 0.1]
         plt.pie(
             graph_df['Number of Events'],
             labels=graph_df['type'],
-            #colors=colors,
             explode=explode,
             autopct="%1.1f%%",
             #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
@@ -690,7 +684,7 @@ def _(connection, pd, plt):
 
         plt.xlabel("Percent of FEMA Grants")
         plt.ylabel("Percent of US Wealth")
-        plt.title("Counties With Leading Outage Times Do Not Correlate to Wealth")
+        plt.title("State Wealth Does Not Correlate to FEMA Grants Received")
         ax.legend()
         plt.ylim(.1, 100)
         plt.xlim(.1, 100)
@@ -725,7 +719,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
        # plt.ylabel("(%)")
         plt.xlabel("")
-        plt.title(f"The 4 Wealthiest States Experienced {total_cust_hrs}% of Electrical Outages", fontsize=16, pad=20)
+        plt.title(f"The 4 Wealthiest States Experienced {total_cust_hrs}% of All Electrical Outages", fontsize=16, pad=20)
 
         ax = plt.gca()
 
