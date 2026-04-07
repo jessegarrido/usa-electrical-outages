@@ -12,25 +12,20 @@ This project explores 2022-2023 USA electrical outage data. It demonstrates data
       ```source outages_venv/Scripts/activate```<br>
 4. Install dependencies<br>
       ```pip3 install -r requirements.txt```<br>
-5. Launch the project in a local browser window <br>
+5. Launch the project into a local browser window <br>
       ```marimo edit outages.py ``` <br>
 6. Press Ctr-Shift-R in the browser window to Run All Cells  <br>
 
 ## Data Sources (provided in `data/`)<br>
 Event-correlated Outage Dataset in America, April 25, 2025<br>
       Pacific Northwest Laboratory, U.S. Department of Energy<br>
-      https://catalog.data.gov/dataset/event-correlated-outage-dataset-in-america<br>
-      - eaglei_outages_with_events_2022 <br>
-      - eaglei_outages_with_events_2023 <br>
+      https://catalog.data.gov/dataset/event-correlated-outage-dataset-in-america<br><br>
 GDP and Personal Income Summary by County, 2022-2024<br>
       U.S. Bureau of Economic Analysis <br>
-      https://apps.bea.gov/itable/?ReqID=70&step=1#eyJhcHBpZCI6NzAsInN0ZXBzIjpbMSwyOSwyNSwzMSwyNiwyNywzMF0sImRhdGEiOltbIlRhYmxlSWQiLCI1MzMiXSxbIk1ham9yX0FyZWEiLCI0Il0sWyJTdGF0ZSIsWyJYWCJdXSxbIkFyZWEiLFsiWFgiXV0sWyJTdGF0aXN0aWMiLFsiMSJdXSxbIlVuaXRfb2ZfbWVhc3VyZSIsIkxldmVscyJdLFsiWWVhciIsWyIyMDI0IiwiMjAyMyIsIjIwMjIiXV0sWyJZZWFyQmVnaW4iLCItMSJdLFsiWWVhcl9FbmQiLCItMSJdXX0=<br>
-      - CAINC1<br>
-      - CAGDP1<br>
+      https://apps.bea.gov/itable/?ReqID=70&step=1#eyJhcHBpZCI6NzAsInN0ZXBzIjpbMSwyOSwyNSwzMSwyNiwyNywzMF0sImRhdGEiOltbIlRhYmxlSWQiLCI1MzMiXSxbIk1ham9yX0FyZWEiLCI0Il0sWyJTdGF0ZSIsWyJYWCJdXSxbIkFyZWEiLFsiWFgiXV0sWyJTdGF0aXN0aWMiLFsiMSJdXSxbIlVuaXRfb2ZfbWVhc3VyZSIsIkxldmVscyJdLFsiWWVhciIsWyIyMDI0IiwiMjAyMyIsIjIwMjIiXV0sWyJZZWFyQmVnaW4iLCItMSJdLFsiWWVhcl9FbmQiLCItMSJdXX0=<br><br>
 Public Assistance Funded Project Summaries - v1<br>
       FEMA, U.S. Department of Homeland Security<br>
       https://www.fema.gov/openfema-data-page/public-assistance-funded-project-summaries-v1<br>
-      - PublicAssistanceFundedProjectsSummaries<br>
 
 ## Findings<br>
-US State and county wealth was observed to weakly correlate with occurence of electrical outages over the period studied. The data highlights that a wealthy economy does not insulate customers from electrical outages, but increases exposure to them. 
+US state and county wealth was observed to weakly correlate with occurence of electrical outages over the period studied. The analysis highlights that a wealthy economy does not insulate customers from electrical outages, but increases exposure to them. 

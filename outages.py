@@ -7,8 +7,8 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <h1>US Electrical Power Outages 2022-2023</h1>
-    <h2>GDP and Income in Impacted States and Counties</h2>
+    <h1>USA Electrical Power Outages 2022-23</h1>
+    <h2>Does wealth insulate US states and counties from electrical outage events?</h2>
     """)
     return
 
@@ -30,7 +30,7 @@ def _():
 def _(mo):
     mo.md(r"""
     <h2>Data Importing, Cleaning, and Wrangling</h2>
-    Read in DOE outage event data from csv
+    Read in outage event data from US Department of Energy csv's
     """)
     return
 
@@ -323,6 +323,12 @@ def _(mo):
 
 
 @app.cell
+def _(mo):
+    mo.image(src="ERD.jpg")
+    return
+
+
+@app.cell
 def _(sqlite3):
     connection = sqlite3.connect("outages.db")
     connection
@@ -454,7 +460,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Electrical Outages (%)")
         plt.xlabel("")
-        plt.title("Where Did Outages Most Often Occur?", fontsize=16, pad=20)
+        plt.title("In Which States Did Outages Most Often Occur?", fontsize=16, pad=20)
 
         ax = plt.gca()
 
@@ -486,7 +492,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Electrical Outages (%)")
         plt.xlabel("")
-        plt.title("Where Did Outages Most Often Occur?", fontsize=16, pad=20)
+        plt.title("In Which Counties Did Outages Most Often Occur?", fontsize=16, pad=20)
 
         ax = plt.gca()
 
@@ -498,6 +504,39 @@ def _(connection, pd, plt):
 
         plt.tight_layout()
         plt.savefig(r'plots\OutagesPerCountyBarPlot.png')
+        plt.show()
+
+    _()
+    return
+
+
+@app.cell
+def _(connection, pd, plt):
+    def _():
+        graph_query = """
+            select county, state2 as state, percent_of_customer_hours as 'Outage Customer-Hours', percent_of_income as 'US Income' from fips_normalized
+            order by percent_of_customer_hours desc
+            limit 20
+        """
+        graph_df = pd.read_sql(graph_query, connection)
+        graph_df['county']= graph_df['county'] + ", " + graph_df['state']
+        graph_df.set_index('county', inplace=True)
+        graph_df.plot(kind='bar')
+        plt.xticks(rotation=45, ha="right", fontsize=8)
+        plt.ylabel("Percent")
+        plt.xlabel("")
+        plt.title("Wealth Varies in US Counties \nWhere Outages Most Often Occurred", fontsize=16, pad=20)
+
+        ax = plt.gca()
+        #ax.set_yscale('log')
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+            spine.set_alpha(0.5)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+        plt.savefig(r'plots\CountyWealthvOutages.png')
         plt.show()
 
     _()
@@ -524,45 +563,12 @@ def _(connection, pd, plt):
             autopct="%1.1f%%",
             #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
                     )
-        plt.title("Outage Events Overwhelmingly Resulted From Weather")
+        plt.title("Outages Overwhelmingly Resulted From Weather")
 
         plt.tight_layout()
         plt.savefig(r'plots/OutageEventTypesPieChart.png')
         return plt.show()
 
-
-    _()
-    return
-
-
-@app.cell
-def _(connection, pd, plt):
-    def _():
-        graph_query = """
-            select county, state2 as state, percent_of_customer_hours as 'Outage Customer-Hours', percent_of_income as 'US Income' from fips_normalized
-            order by percent_of_customer_hours desc
-            limit 20
-        """
-        graph_df = pd.read_sql(graph_query, connection)
-        graph_df['county']= graph_df['county'] + ", " + graph_df['state']
-        graph_df.set_index('county', inplace=True)
-        graph_df.plot(kind='bar')
-        plt.xticks(rotation=45, ha="right", fontsize=8)
-        plt.ylabel("Percent")
-        plt.xlabel("")
-        plt.title("Wealth of Counties Where Outages Most Often Occurred", fontsize=16, pad=20)
-
-        ax = plt.gca()
-        #ax.set_yscale('log')
-        for spine in ax.spines.values():
-            spine.set_linewidth(0.5)
-            spine.set_alpha(0.5)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-
-        plt.tight_layout()
-        plt.savefig(r'plots\CountyWealthvOutages.png')
-        plt.show()
 
     _()
     return
@@ -579,38 +585,44 @@ def _(connection, np, pd, plt):
         fig, ax = plt.subplots(figsize=(8, 6))
         for column in graph_df.columns[2:]:  # Skip the first two columns (X)
             ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
-         # Add trend line
+    
+        #suppress log divide by zero error
+        np.seterr(divide = 'ignore') 
+    
+        # Add trend line
         x = np.log10(graph_df['percent_of_customer_hours'])
         y = np.log10(graph_df[column])
-    
+
         # Remove any NaN or inf values
         mask = np.isfinite(x) & np.isfinite(y)
         x_clean = x[mask]
         y_clean = y[mask]
-    
+
         if len(x_clean) > 1:
             # Fit polynomial (degree 1 = linear)
             coeffs = np.polyfit(x_clean, y_clean, 1)
             poly = np.poly1d(coeffs)
-        
+
             # Create trend line
             x_trend_log = np.array([x_clean.min(), x_clean.max()])
             y_trend_log = poly(x_trend_log)
-        
+
             # Convert back from log
             x_trend = 10**x_trend_log
             y_trend = 10**y_trend_log
-        
+
             # Calculate R-squared
             y_pred = poly(x_clean)
             ss_res = np.sum((y_clean - y_pred)**2)
             ss_tot = np.sum((y_clean - np.mean(y_clean))**2)
             r_squared = 1 - (ss_res / ss_tot)
-        
+
             ax.plot(x_trend, y_trend, '--', linewidth=1.5,
                     label=f'{column} trend (R²={r_squared:.2f})')
-    
-
+        
+            #reenable numpy errors
+            np.seterr(divide = 'warn') 
+        
         plt.ylabel("Percent of US Wealth")
         plt.xlabel("Percent of Outage Customer-Hours")
         plt.title("US State Wealth Weakly Correlates to Outage Time")
@@ -647,42 +659,42 @@ def _(connection, np, pd, plt):
         # Add trend line
         x = np.log10(graph_df['percent_of_customer_hours'])
         y = np.log10(graph_df[column])
-    
+
         # Remove any NaN or inf values
         mask = np.isfinite(x) & np.isfinite(y)
         x_clean = x[mask]
         y_clean = y[mask]
-    
+
         if len(x_clean) > 1:
             # Fit polynomial (degree 1 = linear)
             coeffs = np.polyfit(x_clean, y_clean, 1)
             poly = np.poly1d(coeffs)
-        
+
             # Create trend line
             x_trend_log = np.array([x_clean.min(), x_clean.max()])
             y_trend_log = poly(x_trend_log)
-        
+
             # Convert back from log
             x_trend = 10**x_trend_log
             y_trend = 10**y_trend_log
-        
+
             # Calculate R-squared
             y_pred = poly(x_clean)
             ss_res = np.sum((y_clean - y_pred)**2)
             ss_tot = np.sum((y_clean - np.mean(y_clean))**2)
             r_squared = 1 - (ss_res / ss_tot)
-        
+
             ax.plot(x_trend, y_trend, '--', linewidth=1.5,
                     label=f'{column} trend (R²={r_squared:.2f})')
-    
-    
+
+
         plt.xlabel("Percent of Outage Customer-Hours")
         plt.ylabel("Percent of US Wealth")
         plt.title("US County Wealth Weakly Correlates to Outage Time")
         ax.legend()
         ax.set_yscale('log')
         ax.set_xscale('log')
-    
+
         for idx, row in graph_df.iterrows():
                     ax.annotate(row['county'], # The label text from the 'labels' column
                         (row['percent_of_customer_hours'],row['Income']), # The x, y coordinates
@@ -715,37 +727,37 @@ def _(connection, np, pd, plt):
         # Add trend line
         x = np.log10(graph_df['FEMA Grants(%)'])
         y = np.log10(graph_df[column])
-    
+
         # Remove any NaN or inf values
         mask = np.isfinite(x) & np.isfinite(y)
         x_clean = x[mask]
         y_clean = y[mask]
-    
+
         if len(x_clean) > 1:
             # Fit polynomial (degree 1 = linear)
             coeffs = np.polyfit(x_clean, y_clean, 1)
             poly = np.poly1d(coeffs)
-        
+
             # Create trend line
             x_trend_log = np.array([x_clean.min(), x_clean.max()])
             y_trend_log = poly(x_trend_log)
-        
+
             # Convert back from log
             x_trend = 10**x_trend_log
             y_trend = 10**y_trend_log
-        
+
             # Calculate R-squared
             y_pred = poly(x_clean)
             ss_res = np.sum((y_clean - y_pred)**2)
             ss_tot = np.sum((y_clean - np.mean(y_clean))**2)
             r_squared = 1 - (ss_res / ss_tot)
-        
+
             ax.plot(x_trend, y_trend, '--', linewidth=1.5,
                     label=f'{column} trend (R²={r_squared:.2f})')
-    
+
         plt.xlabel("Percent of FEMA Grants")
         plt.ylabel("Percent of US Wealth")
-        plt.title("FEMA Grants Weakly Correlates to Wealth")
+        plt.title("FEMA Grants Weakly Correlate to Wealth")
         ax.legend()
         plt.ylim(.1, 100)
         plt.xlim(.1, 100)
@@ -780,7 +792,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Percent")
         plt.xlabel("")
-        plt.title(f"Wealthiest Four States Had {total_cust_hrs}% of All Outages", fontsize=16, pad=20)
+        plt.title(f"The Four Wealthiest States \nExperienced {total_cust_hrs}% of Electrical Outages", fontsize=16, pad=20)
 
         ax = plt.gca()
 
@@ -794,6 +806,15 @@ def _(connection, pd, plt):
         plt.savefig(r'plots\WealthPerStateBarPlot.png')
         plt.show()
     _()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <h2>Findings</h2>
+    US state and county wealth was observed to weakly correlate with occurence of electrical outages over the period studied. The analysis highlights that a wealthy economy does not insulate customers from electrical outages, but increases exposure to them.
+    """)
     return
 
 
