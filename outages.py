@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.4"
+__generated_with = "0.22.5"
 app = marimo.App(width="medium")
 
 
@@ -40,9 +40,12 @@ def _(pd):
     #Read in DOE outage data
     df = pd.read_csv(r'data\eaglei_outages_with_events_2022.csv')
     df2 = pd.read_csv(r'data\eaglei_outages_with_events_2023.csv')
+    #join 2022-23 data
     df = pd.concat([df,df2])
     df['Datetime Event Began'] = pd.to_datetime(df['Datetime Event Began'], errors='coerce')
+    #localize dates for later calculations  
     df['Datetime Event Began'] = df['Datetime Event Began'].dt.tz_localize('UTC')
+    #generate a unique event id
     df['event_id']=df['event_id'] + "-" + df['Datetime Event Began'].dt.year.astype(str)
     df.head()
     return (df,)
@@ -94,11 +97,14 @@ def _(pd):
     #Annual Income Data from Bureau of Economic Analysis
     df3 = pd.read_csv(r'data\CAINC1.csv')
     df3.columns=['fips','name','income2022','income2023','income2024']
+    #Annual GDP Data
     df4 = pd.read_csv(r'data\CAGDP1.csv')
     df4.columns=['fips','name','gdp2022','gdp2023','gdp2024']
+    #merge the 202-23 data
     econ_df=pd.merge(df3,df4,on=["fips","name"])
-
+    #drop rows without fips
     econ_df = econ_df[econ_df['fips'].notna()]
+    #format dates
     econ_df['fips']=pd.to_numeric(econ_df['fips'], errors='coerce')
     econ_df.head()
     return df3, econ_df
@@ -117,7 +123,7 @@ def _(econ_df, pd):
     econ_facts_df = pd.DataFrame()
     # Using iterrows()
     for index, row in econ_df.iterrows():
-        for year in range(2022,2024):
+        for year in range(2022,2024): 
             new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
             econ_facts_df = pd.concat([econ_facts_df,new_row], ignore_index=True)
     econ_facts_df.head()
@@ -191,6 +197,7 @@ def _(df3):
             'VI': 'Virgin Islands'
         }
     counties_df=df3.iloc[:,[0,1]].copy()
+    #split on comma
     counties_df.loc[:, 'state']=counties_df.name.str.split(',').str[-1]
     counties_df.loc[:, 'name']=counties_df.name.str.split(',').str[0] 
 
@@ -198,6 +205,7 @@ def _(df3):
     counties_df.loc[:, 'state'] = counties_df['state'].replace('\\*', '', regex=True)
     counties_df.loc[:, 'state'] = (counties_df['state'].astype(str)
             .str.strip() 
+            #use map function to substitute 
             .map(state_abbreviations) 
             .fillna('Unknown')
     )
@@ -247,13 +255,14 @@ def _(df, fema_df, pd):
                     df1.iat[pos1,-2] = row2['event_id']
                     df1.iat[pos1,-1] = row2['Datetime Event Began']
         return df1           
-    # create unique events db 
+    #create df of unique events 
     events_df=df.drop_duplicates('event_id')
+    #drop extra columns
     events_df=events_df.iloc[:,[0,1,2,14]]
     #create unique fema db
     disasters_df=fema_df.drop_duplicates('disasterNumber')
     disasters_df=disasters_df.iloc[:,[0,3,1,2]]
-    # use the function to match unique disasters from the events table to the FEMA grants table 
+    #use the function to match unique disasters from the events table to the FEMA grants table 
     disasters_df=match_events(disasters_df,events_df)
     disasters_df.head()
     return (disasters_df,)
@@ -270,6 +279,7 @@ def _(mo):
 @app.cell
 def _(disasters_df, fema_df, pd):
     fema_df2 = pd.merge(fema_df,disasters_df,on="disasterNumber", how="left")
+    #drop extra columns
     fema_df2=fema_df2.iloc[:,[10,5]]
     fema_df3=fema_df2.groupby('event_id').sum()
     fema_total=fema_df3['federalObligatedAmount'].sum()
@@ -338,7 +348,7 @@ def _(sqlite3):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Populate the database with wrangled data
+    Populate the database from dataframes
     """)
     return
 
@@ -448,13 +458,13 @@ def _(mo):
 def _(connection, pd, plt):
     #Marimo prohibits re-definition of variables across notebook cells. Visualization code is enclosed in anonymous functions for reusability.
     def _():
-        graphquery = """
+        graph_query = """
             select state, percent_of_customer_hours as 'Customer-Hours' , percent_of_duration as Duration, percent_of_events as 'Number of Events'
             from state_normalized
             order by percent_of_customer_hours desc
             limit 10
         """
-        graph_df = pd.read_sql(graphquery, connection)
+        graph_df = pd.read_sql(graph_query, connection)
         graph_df.set_index('state', inplace=True)
         graph_df.plot(kind='bar')
         plt.xticks(rotation=45, ha="right", fontsize=8)
@@ -585,10 +595,10 @@ def _(connection, np, pd, plt):
         fig, ax = plt.subplots(figsize=(8, 6))
         for column in graph_df.columns[2:]:  # Skip the first two columns (X)
             ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
-    
+
         #suppress log divide by zero error
         np.seterr(divide = 'ignore') 
-    
+
         # Add trend line
         x = np.log10(graph_df['percent_of_customer_hours'])
         y = np.log10(graph_df[column])
@@ -619,10 +629,10 @@ def _(connection, np, pd, plt):
 
             ax.plot(x_trend, y_trend, '--', linewidth=1.5,
                     label=f'{column} trend (R²={r_squared:.2f})')
-        
+
             #reenable numpy errors
             np.seterr(divide = 'warn') 
-        
+
         plt.ylabel("Percent of US Wealth")
         plt.xlabel("Percent of Outage Customer-Hours")
         plt.title("US State Wealth Weakly Correlates to Outage Time")
