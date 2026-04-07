@@ -4,6 +4,15 @@ __generated_with = "0.22.4"
 app = marimo.App(width="medium")
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <h1>US Electrical Power Outages 2022-2023</h1>
+    <h2>GDP and Income in Impacted States and Counties</h2>
+    """)
+    return
+
+
 @app.cell
 def _():
     #Imports
@@ -14,14 +23,14 @@ def _():
     import datetime
     import sqlite3
 
-    return mo, pd, plt, sqlite3
+    return mo, np, pd, plt, sqlite3
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     <h2>Data Importing, Cleaning, and Wrangling</h2>
-    <ul><li>Read in DOE outage event data from csv</li></ul>
+    Read in DOE outage event data from csv
     """)
     return
 
@@ -36,27 +45,24 @@ def _(pd):
     df['Datetime Event Began'] = df['Datetime Event Began'].dt.tz_localize('UTC')
     df['event_id']=df['event_id'] + "-" + df['Datetime Event Began'].dt.year.astype(str)
     df.head()
-    df
     return (df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <ul><li>Parse outage type from 37 into 4 unique categories</li></ul>
+    Parse outage type from 37 into 4 unique categories
     """)
     return
 
 
 @app.cell
 def _(df, pd):
-    df['Event Type'].describe()
-    print()
-    print(df['Event Type'].unique())
-    human_keywords = "attack|suspicious|theft|vandalism|cyber|sabotage"
-    system_keywords = "failure|fuel|operations|interruption|inadequacy"
-    system_exclude_keywords = "attack|unknown"
+    # This function evaluates the Event Type column for keywords that indicate a category
     def parse_event(event):
+        human_keywords = "attack|suspicious|theft|vandalism|cyber|sabotage"
+        system_keywords = "failure|fuel|operations|interruption|inadequacy"
+        system_exclude_keywords = "attack|unknown"
         event = pd.Series(event.lower())
         if event.str.contains("weather").any():
             return "Weather"
@@ -65,6 +71,7 @@ def _(df, pd):
         if event.str.contains(system_keywords).any() & ~event.str.contains(system_exclude_keywords).any():
             return "System Failure"
         return "Unknown"
+    # The function is called on each row of the dataframe to generate an Event column
     df['Event']=df['Event Type'].apply(parse_event)
     print(df['Event'].value_counts())
     print("\n\nWEATHER:",df[df['Event']=="Weather"]['Event Type'].unique(),
@@ -77,7 +84,7 @@ def _(df, pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <ul><li>Read in economic data from the US Beareau of Economic Anlysis</li></ul>
+    Read in economic data from the US Beareau of Economic Anlysis
     """)
     return
 
@@ -93,14 +100,14 @@ def _(pd):
 
     econ_df = econ_df[econ_df['fips'].notna()]
     econ_df['fips']=pd.to_numeric(econ_df['fips'], errors='coerce')
-    econ_df
+    econ_df.head()
     return df3, econ_df
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <ul><li>Reprocess the economic data to meet the database design schema</li></ul>
+    Reprocess the economic data to meet the database design schema
     """)
     return
 
@@ -113,14 +120,14 @@ def _(econ_df, pd):
         for year in range(2022,2024):
             new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
             econ_facts_df = pd.concat([econ_facts_df,new_row], ignore_index=True)
-    econ_facts_df
+    econ_facts_df.head()
     return (econ_facts_df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <ul><li>Create a dataframe for a 'counties' database table from a dictionary containing state abbreviations</li></ul>
+    Create a dataframe for a 'counties' database table from a dictionary containing state abbreviations
     """)
     return
 
@@ -194,14 +201,14 @@ def _(df3):
             .map(state_abbreviations) 
             .fillna('Unknown')
     )
-    counties_df
+    counties_df.head()
     return (counties_df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <ul><li>Import the table of FEMA grants </li></ul>
+    Import the table of FEMA grants
     """)
     return
 
@@ -214,7 +221,7 @@ def _(pd):
     fema_df=fema_df.dropna(subset=['declarationDate'])
     fema_df['Date']=pd.to_datetime(fema_df['declarationDate'])
     fema_df = fema_df[fema_df['Date'].dt.year > 2021]
-    fema_df
+    fema_df.head()
     return (fema_df,)
 
 
@@ -227,48 +234,56 @@ def _(mo):
 
 
 @app.cell
-def _(df):
+def _(df, fema_df, pd):
+    # This function iterates over two data frames, examining a date from each to identify references to the same event    
+    def match_events(df1,df2):  
+        df1['declarationDate'] = pd.to_datetime(df1['declarationDate'], errors='coerce')
+        df1['event_id'] = None
+        df1['Datetime Event Began'] = None
+        for pos1, (_, row1) in enumerate(df1.iterrows()):
+            for pos2, (_, row2) in enumerate(df2.iterrows()):
+                diff_days = row1['declarationDate'] - row2['Datetime Event Began']
+                if (row2['state_event'] == row1['state']) & (diff_days.days <= 20) & (diff_days.days >= 0) & (row2['Event'] == 'Weather'):
+                    df1.iat[pos1,-2] = row2['event_id']
+                    df1.iat[pos1,-1] = row2['Datetime Event Began']
+        return df1           
+    # create unique events db 
     events_df=df.drop_duplicates('event_id')
     events_df=events_df.iloc[:,[0,1,2,14]]
-    events_df
-    return (events_df,)
-
-
-@app.cell
-def _(fema_df):
+    #create unique fema db
     disasters_df=fema_df.drop_duplicates('disasterNumber')
     disasters_df=disasters_df.iloc[:,[0,3,1,2]]
-    disasters_df
+    # use the function to match unique disasters from the events table to the FEMA grants table 
+    disasters_df=match_events(disasters_df,events_df)
+    disasters_df.head()
     return (disasters_df,)
 
 
-@app.cell
-def _(disasters_df, events_df, pd):
-    disasters_df['declarationDate'] = pd.to_datetime(disasters_df['declarationDate'], errors='coerce')
-    disasters_df['event_id'] = None
-    disasters_df['Datetime Event Began'] = None
-    for pos1, (_, row1) in enumerate(disasters_df.iterrows()):
-        for pos2, (_, row2) in enumerate(events_df.iterrows()):
-            diff_days = row1['declarationDate'] - row2['Datetime Event Began']
-            if (row2['state_event'] == row1['state']) & (diff_days.days <= 20) & (diff_days.days >= 0) & (row2['Event'] == 'Weather'):
-                disasters_df.iat[pos1,-2] = row2['event_id']
-                disasters_df.iat[pos1,-1] = row2['Datetime Event Began']
-    disasters_df
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Create dataframe of normalized and summary fema grant data for database
+    """)
     return
 
 
 @app.cell
 def _(disasters_df, fema_df, pd):
     fema_df2 = pd.merge(fema_df,disasters_df,on="disasterNumber", how="left")
-
     fema_df2=fema_df2.iloc[:,[10,5]]
     fema_df3=fema_df2.groupby('event_id').sum()
-    #fema_df3=pd.merge(fema_df3,fema_df2,on="event_id",how="left")
     fema_total=fema_df3['federalObligatedAmount'].sum()
-    #print(fema_df2)
     fema_df3['pct_of_fema']=round(fema_df3['federalObligatedAmount']/fema_total*100,2)
-    fema_df3
+    fema_df3.head()
     return (fema_df3,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Create fema dataframe to database schema
+    """)
+    return
 
 
 @app.cell
@@ -277,8 +292,16 @@ def _(disasters_df, fema_df3, pd):
     fema_facts_df['disaster_id']=fema_facts_df.index+1
     fema_facts_df=fema_facts_df.iloc[:,[8,0,5,6,4,1,2]]
     fema_facts_df.columns=['disaster_id','name','date','type','state','amount','percent']
-    fema_facts_df
+    fema_facts_df.head()
     return (fema_facts_df,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Create events dataframe to database schema
+    """)
+    return
 
 
 @app.cell
@@ -287,14 +310,14 @@ def _(df, fema_facts_df, pd):
     events_table_df['outage_id']=events_table_df.index+1
     events_table_df=events_table_df.iloc[:,[-1,15,14,5,6,7,8,10,9,11,12,13]]
     events_table_df.columns=['outage_id','disaster_id','type','fips','state','county','start_time','end_time','duration','min_customers','max_customers','mean_customers']
-    events_table_df
+    events_table_df.head()
     return (events_table_df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <h1>Create the project database</h1>
+    <h2>Create the project database</h2>
     """)
     return
 
@@ -304,6 +327,14 @@ def _(sqlite3):
     connection = sqlite3.connect("outages.db")
     connection
     return (connection,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Populate the database with wrangled data
+    """)
+    return
 
 
 @app.cell
@@ -323,20 +354,17 @@ def _(connection, pd):
 
 
 @app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from outages
-        """,
-        engine=connection
-    )
+def _(mo):
+    mo.md(r"""
+    Define a function to drop columns in a sqlite3 table by index
+    """)
     return
 
 
 @app.cell
 def _(connection):
+    #Function to drop a Sqlite3 by index
     def drop_by_index(db_path, table, indices):
-    #    conn = sqlite3.connect(db_path)
         cursor = connection.cursor()
 
         # Get names from indices
@@ -355,8 +383,17 @@ def _(connection):
     return (drop_by_index,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Define a function to normalize outage data. Call the function twice to generate normalized dataframes of state and county outage data.
+    """)
+    return
+
+
 @app.cell
 def _(connection, drop_by_index, pd):
+    #Function takes 'state' or 'fips' as an argument to generate normalized outage statistics. Normalization is accomplished by translating summary values into percent of total recorded.    
     def normalize(scope):
         query1 = f""" 
             select c.name as county, o.{scope}, count(*) as number_of_events, sum(duration * mean_customers) as summary_customer_hours, sum(duration) as summary_duration from outages o
@@ -394,29 +431,16 @@ def _(connection, drop_by_index, pd):
 
 
 @app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from fips_normalized
-        """,
-        engine=connection
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from state_normalized
-        """,
-        engine=connection
-    )
+def _(mo):
+    mo.md(r"""
+    <h2>Visualizations</h2>
+    """)
     return
 
 
 @app.cell
 def _(connection, pd, plt):
+    #Marimo prohibits re-definition of variables across notebook cells. Visualization code is enclosed in anonymous functions for reusability.
     def _():
         graphquery = """
             select state, percent_of_customer_hours as 'Customer-Hours' , percent_of_duration as Duration, percent_of_events as 'Number of Events'
@@ -430,7 +454,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Electrical Outages (%)")
         plt.xlabel("")
-        plt.title("In What States Did Electrical Outages Occur?", fontsize=16, pad=20)
+        plt.title("Where Did Outages Most Often Occur?", fontsize=16, pad=20)
 
         ax = plt.gca()
 
@@ -444,28 +468,6 @@ def _(connection, pd, plt):
         plt.savefig(r'plots\OutagesPerStateBarPlot.png')
         plt.show()
     _()
-    return
-
-
-@app.cell(hide_code=True)
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from fips_normalized
-        """,
-        engine=connection
-    )
-    return
-
-
-@app.cell
-def _(connection, mo):
-    _df = mo.sql(
-        f"""
-        select * from fips_normalized
-        """,
-        engine=connection
-    )
     return
 
 
@@ -484,7 +486,7 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Electrical Outages (%)")
         plt.xlabel("")
-        plt.title("In What Counties Did Outages Occur?", fontsize=16, pad=20)
+        plt.title("Where Did Outages Most Often Occur?", fontsize=16, pad=20)
 
         ax = plt.gca()
 
@@ -537,9 +539,9 @@ def _(connection, pd, plt):
 def _(connection, pd, plt):
     def _():
         graph_query = """
-            select county, state2 as state, percent_of_customer_hours as 'Percent of Outage Customer-Hours', percent_of_income as 'Percent of US Income' from fips_normalized
+            select county, state2 as state, percent_of_customer_hours as 'Outage Customer-Hours', percent_of_income as 'US Income' from fips_normalized
             order by percent_of_customer_hours desc
-            limit 25
+            limit 20
         """
         graph_df = pd.read_sql(graph_query, connection)
         graph_df['county']= graph_df['county'] + ", " + graph_df['state']
@@ -548,17 +550,15 @@ def _(connection, pd, plt):
         plt.xticks(rotation=45, ha="right", fontsize=8)
         plt.ylabel("Percent")
         plt.xlabel("")
-        plt.title("Wealth of Counties Where Outages Occurred", fontsize=16, pad=20)
+        plt.title("Wealth of Counties Where Outages Most Often Occurred", fontsize=16, pad=20)
 
         ax = plt.gca()
-
+        #ax.set_yscale('log')
         for spine in ax.spines.values():
             spine.set_linewidth(0.5)
             spine.set_alpha(0.5)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        #ax.set_yscale('log')
-        #ax.set_xscale('log')
 
         plt.tight_layout()
         plt.savefig(r'plots\CountyWealthvOutages.png')
@@ -569,53 +569,51 @@ def _(connection, pd, plt):
 
 
 @app.cell
-def _():
-    #def _():
-    #    graph_query = """
-    #    select type, round(sum(duration*mean_customers) * 100 / (select sum(duration*mean_customers) from outages)) as 'Customer-Hours' , round(sum(duration) * 100/ (select sum(duration) from outages)) as Duration, count(*) * 100 / (select count(*) from outages) as 'Number of Events'
-    #    from outages
-    #    group by type
-    #    order by count(*) desc
-    #    limit 10
-    #    """
-    #    graph_df = pd.read_sql(graph_query, connection)
-    #    graph_df.set_index('type', inplace=True)
-    #    graph_df.plot(kind='bar')
-    #    plt.xticks(rotation=45, ha="right", fontsize=8)
-    #    plt.ylabel("Electrical Outages (%)")
-    #    plt.xlabel("")
-    #    plt.title("What Caused Electrical Outages?", fontsize=16, pad=20)
-    #
-    #    ax = plt.gca()
-    #    for spine in ax.spines.values():
-    #        spine.set_linewidth(0.5)
-    #        spine.set_alpha(0.5)
-    #    ax.spines['top'].set_visible(False)
-    #    ax.spines['right'].set_visible(False)
-    #
-    #    plt.tight_layout()
-    #    plt.savefig(r'plots/OutagesPerEventTypeBarPlot.png')
-    #    return plt.show()
-    #_()
-    return
-
-
-@app.cell
-def _(connection, pd, plt):
+def _(connection, np, pd, plt):
     def _():
         graph_query = """
         select state, percent_of_customer_hours, percent_of_gdp as GDP, percent_of_income as Income from state_normalized
-        where percent_of_customer_hours > .5
         """
         graph_df = pd.read_sql(graph_query, connection)
         plt.Figure(figsize=(20,10))
-
         fig, ax = plt.subplots(figsize=(8, 6))
         for column in graph_df.columns[2:]:  # Skip the first two columns (X)
             ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
+         # Add trend line
+        x = np.log10(graph_df['percent_of_customer_hours'])
+        y = np.log10(graph_df[column])
+    
+        # Remove any NaN or inf values
+        mask = np.isfinite(x) & np.isfinite(y)
+        x_clean = x[mask]
+        y_clean = y[mask]
+    
+        if len(x_clean) > 1:
+            # Fit polynomial (degree 1 = linear)
+            coeffs = np.polyfit(x_clean, y_clean, 1)
+            poly = np.poly1d(coeffs)
+        
+            # Create trend line
+            x_trend_log = np.array([x_clean.min(), x_clean.max()])
+            y_trend_log = poly(x_trend_log)
+        
+            # Convert back from log
+            x_trend = 10**x_trend_log
+            y_trend = 10**y_trend_log
+        
+            # Calculate R-squared
+            y_pred = poly(x_clean)
+            ss_res = np.sum((y_clean - y_pred)**2)
+            ss_tot = np.sum((y_clean - np.mean(y_clean))**2)
+            r_squared = 1 - (ss_res / ss_tot)
+        
+            ax.plot(x_trend, y_trend, '--', linewidth=1.5,
+                    label=f'{column} trend (R²={r_squared:.2f})')
+    
+
         plt.ylabel("Percent of US Wealth")
-        plt.xlabel("Percent of US Outage Customer-Hours")
-        plt.title("States With Leading Outage Time Do Not Correlate to Wealth")
+        plt.xlabel("Percent of Outage Customer-Hours")
+        plt.title("US State Wealth Weakly Correlates to Outage Time")
         ax.legend()
         ax.set_yscale('log')
         ax.set_xscale('log')
@@ -634,11 +632,11 @@ def _(connection, pd, plt):
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(connection, np, pd, plt):
     def _():
         graph_query = """
         select concat(county, ", ", state2) as county, percent_of_customer_hours, percent_of_gdp as GDP, percent_of_income as Income from fips_normalized 
-        where percent_of_customer_hours > 1.2
+        where percent_of_customer_hours > .3
         """
         graph_df = pd.read_sql(graph_query, connection)
         plt.Figure(figsize=(20,10))
@@ -646,13 +644,45 @@ def _(connection, pd, plt):
         for column in graph_df.columns[2:]:  # Skip the first two columns (X)
             ax.scatter(graph_df['percent_of_customer_hours'], graph_df[column], label=column)
 
+        # Add trend line
+        x = np.log10(graph_df['percent_of_customer_hours'])
+        y = np.log10(graph_df[column])
+    
+        # Remove any NaN or inf values
+        mask = np.isfinite(x) & np.isfinite(y)
+        x_clean = x[mask]
+        y_clean = y[mask]
+    
+        if len(x_clean) > 1:
+            # Fit polynomial (degree 1 = linear)
+            coeffs = np.polyfit(x_clean, y_clean, 1)
+            poly = np.poly1d(coeffs)
+        
+            # Create trend line
+            x_trend_log = np.array([x_clean.min(), x_clean.max()])
+            y_trend_log = poly(x_trend_log)
+        
+            # Convert back from log
+            x_trend = 10**x_trend_log
+            y_trend = 10**y_trend_log
+        
+            # Calculate R-squared
+            y_pred = poly(x_clean)
+            ss_res = np.sum((y_clean - y_pred)**2)
+            ss_tot = np.sum((y_clean - np.mean(y_clean))**2)
+            r_squared = 1 - (ss_res / ss_tot)
+        
+            ax.plot(x_trend, y_trend, '--', linewidth=1.5,
+                    label=f'{column} trend (R²={r_squared:.2f})')
+    
+    
         plt.xlabel("Percent of Outage Customer-Hours")
         plt.ylabel("Percent of US Wealth")
-        plt.title("Counties With Leading Outage Times Do Not Correlate to Wealth")
+        plt.title("US County Wealth Weakly Correlates to Outage Time")
         ax.legend()
         ax.set_yscale('log')
         ax.set_xscale('log')
-
+    
         for idx, row in graph_df.iterrows():
                     ax.annotate(row['county'], # The label text from the 'labels' column
                         (row['percent_of_customer_hours'],row['Income']), # The x, y coordinates
@@ -667,7 +697,7 @@ def _(connection, pd, plt):
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(connection, np, pd, plt):
 
     def _():
         graph_query = """
@@ -682,9 +712,40 @@ def _(connection, pd, plt):
         for column in graph_df.columns[3:]:  # Skip the first three columns (X)
             ax.scatter(graph_df['FEMA Grants(%)'], graph_df[column], label=column)
 
+        # Add trend line
+        x = np.log10(graph_df['FEMA Grants(%)'])
+        y = np.log10(graph_df[column])
+    
+        # Remove any NaN or inf values
+        mask = np.isfinite(x) & np.isfinite(y)
+        x_clean = x[mask]
+        y_clean = y[mask]
+    
+        if len(x_clean) > 1:
+            # Fit polynomial (degree 1 = linear)
+            coeffs = np.polyfit(x_clean, y_clean, 1)
+            poly = np.poly1d(coeffs)
+        
+            # Create trend line
+            x_trend_log = np.array([x_clean.min(), x_clean.max()])
+            y_trend_log = poly(x_trend_log)
+        
+            # Convert back from log
+            x_trend = 10**x_trend_log
+            y_trend = 10**y_trend_log
+        
+            # Calculate R-squared
+            y_pred = poly(x_clean)
+            ss_res = np.sum((y_clean - y_pred)**2)
+            ss_tot = np.sum((y_clean - np.mean(y_clean))**2)
+            r_squared = 1 - (ss_res / ss_tot)
+        
+            ax.plot(x_trend, y_trend, '--', linewidth=1.5,
+                    label=f'{column} trend (R²={r_squared:.2f})')
+    
         plt.xlabel("Percent of FEMA Grants")
         plt.ylabel("Percent of US Wealth")
-        plt.title("State Wealth Does Not Correlate to FEMA Grants Received")
+        plt.title("FEMA Grants Weakly Correlates to Wealth")
         ax.legend()
         plt.ylim(.1, 100)
         plt.xlim(.1, 100)
@@ -707,7 +768,7 @@ def _(connection, pd, plt):
 def _(connection, pd, plt):
     def _():
         graphquery = """
-            select state, percent_of_gdp as 'Percent of US GDP', percent_of_customer_hours as 'Percent of Outage Customer-Hours'
+            select state, percent_of_gdp as 'US GDP', percent_of_customer_hours as 'Outage Customer-Hours'
             from state_normalized
             order by percent_of_gdp desc
             limit 4
@@ -715,11 +776,11 @@ def _(connection, pd, plt):
         graph_df = pd.read_sql(graphquery, connection)
         graph_df.set_index('state', inplace=True)
         graph_df.plot(kind='bar')
-        total_cust_hrs = round(graph_df['Percent of Outage Customer-Hours'].sum())
+        total_cust_hrs = round(graph_df['Outage Customer-Hours'].sum())
         plt.xticks(rotation=45, ha="right", fontsize=8)
-       # plt.ylabel("(%)")
+        plt.ylabel("Percent")
         plt.xlabel("")
-        plt.title(f"The 4 Wealthiest States Experienced {total_cust_hrs}% of All Electrical Outages", fontsize=16, pad=20)
+        plt.title(f"Wealthiest Four States Had {total_cust_hrs}% of All Outages", fontsize=16, pad=20)
 
         ax = plt.gca()
 
