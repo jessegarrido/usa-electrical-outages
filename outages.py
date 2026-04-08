@@ -100,7 +100,7 @@ def _(pd):
     #Annual GDP Data
     df4 = pd.read_csv(r'data\CAGDP1.csv')
     df4.columns=['fips','name','gdp2022','gdp2023','gdp2024']
-    #merge the 202-23 data
+    #merge the 2022-23 data
     econ_df=pd.merge(df3,df4,on=["fips","name"])
     #drop rows without fips
     econ_df = econ_df[econ_df['fips'].notna()]
@@ -121,7 +121,7 @@ def _(mo):
 @app.cell
 def _(econ_df, pd):
     econ_facts_df = pd.DataFrame()
-    # Using iterrows()
+    #Iterate over the economic data, building and appending a new row for each year 
     for index, row in econ_df.iterrows():
         for year in range(2022,2024): 
             new_row = pd.DataFrame({'econ_id': [len(econ_facts_df)], 'fips': [row['fips']],'year': [year],'income':row[f'income{year}'],'gdp':row[f'gdp{year}']})
@@ -205,7 +205,7 @@ def _(df3):
     counties_df.loc[:, 'state'] = counties_df['state'].replace('\\*', '', regex=True)
     counties_df.loc[:, 'state'] = (counties_df['state'].astype(str)
             .str.strip() 
-            #use map function to substitute 
+            #use map function to substitute state name for abbreviation
             .map(state_abbreviations) 
             .fillna('Unknown')
     )
@@ -225,9 +225,13 @@ def _(mo):
 def _(pd):
     #FEMA 
     fema_df = pd.read_csv(r'data\PublicAssistanceFundedProjectsSummaries.csv')
+    #drop extra columns
     fema_df=fema_df.iloc[:,[0,1,2,3,5,8]]
+    #drop blank disaster dates
     fema_df=fema_df.dropna(subset=['declarationDate'])
+    #force datetime datatype
     fema_df['Date']=pd.to_datetime(fema_df['declarationDate'])
+    #filter to relevant years
     fema_df = fema_df[fema_df['Date'].dt.year > 2021]
     fema_df.head()
     return (fema_df,)
@@ -251,7 +255,9 @@ def _(df, fema_df, pd):
         for pos1, (_, row1) in enumerate(df1.iterrows()):
             for pos2, (_, row2) in enumerate(df2.iterrows()):
                 diff_days = row1['declarationDate'] - row2['Datetime Event Began']
+                #events are matched based on criteria
                 if (row2['state_event'] == row1['state']) & (diff_days.days <= 20) & (diff_days.days >= 0) & (row2['Event'] == 'Weather'):
+                    #write disaster id if a matching disaster is found
                     df1.iat[pos1,-2] = row2['event_id']
                     df1.iat[pos1,-1] = row2['Datetime Event Began']
         return df1           
@@ -281,7 +287,9 @@ def _(disasters_df, fema_df, pd):
     fema_df2 = pd.merge(fema_df,disasters_df,on="disasterNumber", how="left")
     #drop extra columns
     fema_df2=fema_df2.iloc[:,[10,5]]
+    #group grants by amount granted to individual disasters
     fema_df3=fema_df2.groupby('event_id').sum()
+    #generate a normalized value 
     fema_total=fema_df3['federalObligatedAmount'].sum()
     fema_df3['pct_of_fema']=round(fema_df3['federalObligatedAmount']/fema_total*100,2)
     fema_df3.head()
@@ -299,7 +307,9 @@ def _(mo):
 @app.cell
 def _(disasters_df, fema_df3, pd):
     fema_facts_df = pd.merge(fema_df3,disasters_df,on="event_id", how="left")
+    #create id
     fema_facts_df['disaster_id']=fema_facts_df.index+1
+    #drop extra columns
     fema_facts_df=fema_facts_df.iloc[:,[8,0,5,6,4,1,2]]
     fema_facts_df.columns=['disaster_id','name','date','type','state','amount','percent']
     fema_facts_df.head()
@@ -573,7 +583,7 @@ def _(connection, pd, plt):
             autopct="%1.1f%%",
             #hatch=['**O', 'oO', 'O.O', '.||.'] #uncomment to make beautiful
                     )
-        plt.title("Outages Overwhelmingly Resulted From Weather")
+        plt.title("Outage Events Overwhelmingly Resulted From Weather")
 
         plt.tight_layout()
         plt.savefig(r'plots/OutageEventTypesPieChart.png')
