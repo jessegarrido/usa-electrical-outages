@@ -14,7 +14,7 @@ This project explores 2022-2023 USA electrical outage data. It demonstrates data
       ```pip3 install -r requirements.txt```<br>
 5. Launch the project into a local browser window <br>
       ```marimo edit outages.py ``` <br>
-6. Press Ctr-Shift-R in the browser window to Run All Cells  <br>
+6. Press Ctrl-Shift-R in the browser window to Run All Cells  <br>
 
 ## Data Sources (provided in `data/`)<br>
 Event-correlated Outage Dataset in America, April 25, 2025<br>
