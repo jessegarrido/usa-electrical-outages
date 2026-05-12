@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.5"
+__generated_with = "0.23.5"
 app = marimo.App(width="medium")
 
 
@@ -22,8 +22,9 @@ def _():
     import numpy as np
     import datetime
     import sqlite3
+    from pathlib import Path
 
-    return mo, np, pd, plt, sqlite3
+    return Path, mo, np, pd, plt, sqlite3
 
 
 @app.cell(hide_code=True)
@@ -38,8 +39,8 @@ def _(mo):
 @app.cell
 def _(pd):
     #Read in DOE outage data
-    df = pd.read_csv(r'data\eaglei_outages_with_events_2022.csv')
-    df2 = pd.read_csv(r'data\eaglei_outages_with_events_2023.csv')
+    df = pd.read_csv(r'data/eaglei_outages_with_events_2022.csv')
+    df2 = pd.read_csv(r'data/eaglei_outages_with_events_2023.csv')
     #join 2022-23 data
     df = pd.concat([df,df2])
     df['Datetime Event Began'] = pd.to_datetime(df['Datetime Event Began'], errors='coerce')
@@ -95,10 +96,10 @@ def _(mo):
 @app.cell
 def _(pd):
     #Annual Income Data from Bureau of Economic Analysis
-    df3 = pd.read_csv(r'data\CAINC1.csv')
+    df3 = pd.read_csv(r'data/CAINC1.csv')
     df3.columns=['fips','name','income2022','income2023','income2024']
     #Annual GDP Data
-    df4 = pd.read_csv(r'data\CAGDP1.csv')
+    df4 = pd.read_csv(r'data/CAGDP1.csv')
     df4.columns=['fips','name','gdp2022','gdp2023','gdp2024']
     #merge the 2022-23 data
     econ_df=pd.merge(df3,df4,on=["fips","name"])
@@ -224,7 +225,7 @@ def _(mo):
 @app.cell
 def _(pd):
     #FEMA 
-    fema_df = pd.read_csv(r'data\PublicAssistanceFundedProjectsSummaries.csv')
+    fema_df = pd.read_csv(r'data/PublicAssistanceFundedProjectsSummaries.csv')
     #drop extra columns
     fema_df=fema_df.iloc[:,[0,1,2,3,5,8]]
     #drop blank disaster dates
@@ -456,6 +457,17 @@ def _(connection, drop_by_index, pd):
     return
 
 
+@app.cell
+def _(connection, mo):
+    _df = mo.sql(
+        f"""
+        select * from state_normalized
+        """,
+        engine=connection
+    )
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -465,7 +477,7 @@ def _(mo):
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(Path, connection, pd, plt):
     #Marimo prohibits re-definition of variables across notebook cells. Visualization code is enclosed in anonymous functions for reusability.
     def _():
         graph_query = """
@@ -491,14 +503,24 @@ def _(connection, pd, plt):
         ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
-        plt.savefig(r'plots\OutagesPerStateBarPlot.png')
+        # This gets the directory where your notebook file (.py) is located.
+        notebook_dir = Path(__file__).parent
+
+        # Now, build the full path to the 'plots' folder and the file.
+        save_path = notebook_dir / 'plots' / 'OutagesPerStateBarPlot.png'
+
+        # Ensure the 'plots' directory exists
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save the figure
+        plt.savefig(save_path)
         plt.show()
     _()
     return
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(Path, connection, pd, plt):
     def _():
         graph_query = """
             select county, state2 as state, percent_of_customer_hours as 'Customer-Hours', percent_of_duration as Duration, percent_of_events as 'Number of Events' from fips_normalized
@@ -523,7 +545,13 @@ def _(connection, pd, plt):
         ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
-        plt.savefig(r'plots\OutagesPerCountyBarPlot.png')
+        #plt.savefig(r'plots\OutagesPerCountyBarPlot.png')
+
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'OutagesPerCountyBarPlot.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
+
         plt.show()
 
     _()
@@ -531,7 +559,7 @@ def _(connection, pd, plt):
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(Path, connection, pd, plt):
     def _():
         graph_query = """
             select county, state2 as state, percent_of_customer_hours as 'Outage Customer-Hours', percent_of_income as 'US Income' from fips_normalized
@@ -556,7 +584,11 @@ def _(connection, pd, plt):
         ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
-        plt.savefig(r'plots\CountyWealthvOutages.png')
+        #plt.savefig(r'plots\CountyWealthvOutages.png')
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'CountyWealthvOutages.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
         plt.show()
 
     _()
@@ -564,7 +596,7 @@ def _(connection, pd, plt):
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(Path, connection, pd, plt):
     def _():
         #plt.figure(figsize=(8,8))
         graph_query = """
@@ -586,16 +618,18 @@ def _(connection, pd, plt):
         plt.title("Outage Events Overwhelmingly Resulted From Weather")
 
         plt.tight_layout()
-        plt.savefig(r'plots/OutageEventTypesPieChart.png')
+        #plt.savefig(r'plots/OutageEventTypesPieChart.png')
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'OutageEventTypesPieChart.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
         return plt.show()
-
-
     _()
     return
 
 
 @app.cell
-def _(connection, np, pd, plt):
+def _(Path, connection, np, pd, plt):
     def _():
         graph_query = """
         select state, percent_of_customer_hours, percent_of_gdp as GDP, percent_of_income as Income from state_normalized
@@ -657,14 +691,19 @@ def _(connection, np, pd, plt):
                             xytext=(0, 5), # Offset the text by 5 points vertically
                             ha='center', # Center the text horizontally
                             fontsize=9) # Adjust font size
-        plt.savefig(r'plots/StateWealthvCustomer-Hours.png')
+        #plt.savefig(r'plots/StateWealthvCustomer-Hours.png')
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'StateWealthvCustomer-Hours.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
+
         return plt.show()
     _()
     return
 
 
 @app.cell
-def _(connection, np, pd, plt):
+def _(Path, connection, np, pd, plt):
     def _():
         graph_query = """
         select concat(county, ", ", state2) as county, percent_of_customer_hours, percent_of_gdp as GDP, percent_of_income as Income from fips_normalized 
@@ -722,14 +761,18 @@ def _(connection, np, pd, plt):
                         xytext=(0, 5), # Offset the text by 5 points vertically
                         ha='center', # Center the text horizontally
                         fontsize=9) # Adjust font size
-        plt.savefig(r'plots/CountiesWealthvCustomer-Hours.png')
+        #plt.savefig(r'plots/CountiesWealthvCustomer-Hours.png')
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'CountiesWealthvCustomer-Hours.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
         return plt.show()
     _()
     return
 
 
 @app.cell
-def _(connection, np, pd, plt):
+def _(Path, connection, np, pd, plt):
 
     def _():
         graph_query = """
@@ -790,14 +833,18 @@ def _(connection, np, pd, plt):
                         xytext=(0, 5), # Offset the text by 5 points vertically
                         ha='center', # Center the text horizontally
                         fontsize=9) # Adjust font size
-        plt.savefig(r'plots/GDPvFemaGrants.png')
+        #plt.savefig(r'plots/GDPvFemaGrants.png')
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'GDPvFemaGrants.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
         return plt.show()
     _()
     return
 
 
 @app.cell
-def _(connection, pd, plt):
+def _(Path, connection, pd, plt):
     def _():
         graphquery = """
             select state, percent_of_gdp as 'US GDP', percent_of_customer_hours as 'Outage Customer-Hours'
@@ -823,7 +870,11 @@ def _(connection, pd, plt):
         ax.spines['right'].set_visible(False)
 
         plt.tight_layout()
-        plt.savefig(r'plots\WealthPerStateBarPlot.png')
+        #plt.savefig('plots\FourWealthiestStates.png')
+        notebook_dir = Path(__file__).parent
+        save_path = notebook_dir / 'plots' / 'FourWealthiestStates.png'
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path)
         plt.show()
     _()
     return
